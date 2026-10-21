@@ -566,7 +566,8 @@ def main() -> int:
             say(f"\ndry run: built into {BUILD}, nothing uploaded")
             return 0
 
-        gh("auth", "status")
+        # the active account only: a stale second login shouldn't stop a publish
+        say(f"publishing as {gh('api', 'user', '-q', '.login').stdout.strip()}")
         for b in built:
             upload_plugin(b, args.repo, args.replace)
         upload_index(args.repo, target / "index.json", target / "index.json.sig")

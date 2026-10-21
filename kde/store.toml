@@ -9,7 +9,7 @@ pause for 3 seconds or switch it off and your own colours and wallpaper come bac
 """
 category = "visuals"
 min_tide = "3.0.0"
-added    = "2026-11-01"
+added    = "2026-10-21"
 listed   = true
 vendor   = []
 icon     = "icon.svg"

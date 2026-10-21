@@ -1,0 +1,156 @@
+{
+  "format": 1,
+  "generated": "2026-10-21T20:19:34Z",
+  "plugins": [
+    {
+      "slug": "kde",
+      "name": "kde desktop",
+      "blurb": "your kde desktop takes the song's colour while it plays.",
+      "about": "plasma's accent colour follows tide's, so highlights, buttons and sliders in every kde app match the song. go further and the wallpaper becomes a soft blur of the cover on every screen.\n\npause for 3 seconds or switch it off and your own colours and wallpaper come back.",
+      "version": "0.1.0",
+      "api": 1,
+      "size": 8727,
+      "sha256": "2ca7c32d3beaab9b49cc6b695d89751ca4450b226901b8cffd6ebc8ff394c23a",
+      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/kde-0.1.0/kde.zip",
+      "uses": [
+        "playback",
+        "files"
+      ],
+      "needs": [
+        {
+          "what": "kde plasma 6",
+          "check": "plasma",
+          "hard_note": "only works on kde plasma",
+          "hard": true
+        }
+      ],
+      "author": "captience",
+      "official": true,
+      "category": "visuals",
+      "repo": "https://github.com/captiencelovesarch/tide-plugins/tree/main/kde",
+      "added": "2026-10-21",
+      "vendors": [],
+      "min_tide": "3.0.0",
+      "icon": {
+        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/kde-0.1.0/kde-icon.svg",
+        "sha256": "c87eed8c31599ae65415b81d9b2b3756b34255a0aeef8a3c11250b0cbf51600f"
+      },
+      "banner": {
+        "grid": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/kde-0.1.0/kde-grid.webp",
+          "sha256": "bde734d7b5f4d8ce8a1a31f26333e71994b86cb4956bf5bef3d6afcfc4d2e2cc"
+        },
+        "full": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/kde-0.1.0/kde-full.webp",
+          "sha256": "f85dae19bd3c782190b391ebdc87b54ba3e58c8f490bf72744e2980e95f5395c"
+        },
+        "motion": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/kde-0.1.0/kde-motion.webp",
+          "sha256": "aae63d6a04bfd95ee66661ee07b69da01ea698aba177f7c2c296e5b36abeb80a"
+        }
+      },
+      "previews": []
+    },
+    {
+      "slug": "lights",
+      "name": "lights",
+      "blurb": "your rgb lights pulse with the bass in the cover's colours.",
+      "about": "pc rgb through openrgb (keyboards, mice, ram, the motherboard and what's plugged into it) and wifi strips through wled. on the kick or breathing, in the cover's colours or your theme's accent. never more than three flashes a second; a faster beat still shows, just softer.\n\nyour lights get their old colours back when tide lets go. tide can start openrgb's server for you, with no window.",
+      "version": "0.1.0",
+      "api": 1,
+      "size": 12247,
+      "sha256": "ce4ca623aae78d212bb6a7c706bb71386c9351f2356d65d2f016db87ee56eb15",
+      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lights-0.1.0/lights.zip",
+      "uses": [
+        "playback",
+        "network"
+      ],
+      "needs": [
+        {
+          "what": "openrgb, with its sdk server on",
+          "check": "openrgb",
+          "how": "sudo pacman -S openrgb"
+        }
+      ],
+      "author": "captience",
+      "official": true,
+      "category": "hardware",
+      "repo": "https://github.com/captiencelovesarch/tide-plugins/tree/main/lights",
+      "added": "2026-10-21",
+      "vendors": [],
+      "min_tide": "3.0.0",
+      "icon": {
+        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lights-0.1.0/lights-icon.svg",
+        "sha256": "7219000e01ad5f6bef0a67d9fdd8e4dabb297acf1843142c84c00da543beb328"
+      },
+      "banner": {
+        "grid": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lights-0.1.0/lights-grid.webp",
+          "sha256": "4e41881406fd1d328023235fd3a36c849167824a38d35a861804a06a05a4cef3"
+        },
+        "full": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lights-0.1.0/lights-full.webp",
+          "sha256": "05fc4ed713a80c8719bb7aa8825ba9d3bbeb23ed0234a30c606495e50a4be2e8"
+        },
+        "motion": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lights-0.1.0/lights-motion.webp",
+          "sha256": "c41d053ad6b98c25e04046f7fabe15dab74073cfd5a7b73fa7baea2f4fd54f34"
+        }
+      },
+      "previews": []
+    },
+    {
+      "slug": "steamvr",
+      "name": "steamvr",
+      "blurb": "check the watch on your wrist and tide opens in vr. look away and it goes.",
+      "about": "a watch on your wrist. turn it toward you and tide's panel opens in front of you: the song, the lyrics, the queue, search and your library. press it with your controller tip or point the laser at it. look away and it goes after a couple of seconds.\n\nvoice search runs on this computer (the whisper model, about 77 mb, is a button in the settings). a glow on the edge of your view can pulse with the music, never more than three flashes a second.",
+      "version": "0.3.0",
+      "api": 1,
+      "size": 675883,
+      "sha256": "4bc4b69ab2e90258251df9daf20997d90cae5d7e049d7cc41134a1dea76d09ec",
+      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/steamvr-0.3.0/steamvr.zip",
+      "uses": [
+        "playback",
+        "queue",
+        "lyrics",
+        "vr",
+        "ui"
+      ],
+      "needs": [
+        {
+          "what": "steamvr and a headset",
+          "check": "steamvr",
+          "how": "install steamvr from steam"
+        }
+      ],
+      "author": "captience",
+      "official": true,
+      "category": "hardware",
+      "repo": "https://github.com/captiencelovesarch/tide-plugins/tree/main/steamvr",
+      "added": "2026-10-21",
+      "vendors": [
+        "openvr"
+      ],
+      "min_tide": "3.0.0",
+      "icon": {
+        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/steamvr-0.3.0/steamvr-icon.svg",
+        "sha256": "34ae3c54b9ad77f9c12e9b3d5491b79d3ec1470dac8c40bb1284ddaba118278b"
+      },
+      "banner": {
+        "grid": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/steamvr-0.3.0/steamvr-grid.webp",
+          "sha256": "5b08733a5d7ad9f6b42ee9d398ae9bbb32e18fff7fc94f80e6650e2370a6bf7c"
+        },
+        "full": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/steamvr-0.3.0/steamvr-full.webp",
+          "sha256": "db714a0ff10d30a01be922d2d180d6d8fc3afd84a34563eeb5f1213711c61417"
+        },
+        "motion": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/steamvr-0.3.0/steamvr-motion.webp",
+          "sha256": "d77945eddeba81bad3a36be7468044a451cd9d7bbed43c85aa5160b771e16383"
+        }
+      },
+      "previews": []
+    }
+  ]
+}

@@ -9,7 +9,7 @@ your lights get their old colours back when tide lets go. tide can start openrgb
 """
 category = "hardware"
 min_tide = "3.0.0"
-added    = "2026-11-01"
+added    = "2026-10-21"
 listed   = true
 vendor   = []
 icon     = "icon.svg"

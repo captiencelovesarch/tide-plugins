@@ -9,7 +9,7 @@ voice search runs on this computer (the whisper model, about 77 mb, is a button 
 """
 category = "hardware"
 min_tide = "3.0.0"
-added    = "2026-11-01"
+added    = "2026-10-21"
 listed   = true
 
 # python modules the zip carries in vendor/. pip requirement lines.
