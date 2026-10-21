@@ -1,0 +1,27 @@
+[plugin]
+slug        = "now-playing-file"
+name        = "now playing file"
+description = "writes the song that's playing to a text file, for an obs text source or a status bar."
+version     = "0.1.0"
+api         = 1
+entry       = "plugin:NowPlayingFile"
+uses        = ["playback", "files"]
+
+[[setting]]
+key     = "format"
+label   = "line"
+kind    = "str"
+default = "{artists} - {title}"
+tooltip = "{title}, {artists} and {album} are filled in."
+
+[[setting]]
+key     = "when_paused"
+label   = "when paused"
+kind    = "choice"
+choices = [["keep", "keep the song"], ["clear", "empty the file"]]
+default = "keep"
+
+[[setting]]
+key   = "open_folder"
+label = "open the folder"
+kind  = "action"
