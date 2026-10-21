@@ -1,0 +1,8 @@
+# plugin of the week. publish.py puts this in the signed index; change it
+# and run `tools/publish.py --index-only`. past `until`, tide shows the
+# newest plugin instead.
+
+# [featured]
+# slug  = "steamvr"
+# note  = ""
+# until = "2026-11-08"

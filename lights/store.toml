@@ -1,0 +1,25 @@
+# what the store says about lights. tools/publish.py reads this; none of
+# it goes in the zip. pictures live in store/ next to it.
+
+blurb    = "your rgb lights pulse with the bass in the cover's colours."
+about    = """
+pc rgb through openrgb (keyboards, mice, ram, the motherboard and what's plugged into it) and wifi strips through wled. on the kick or breathing, in the cover's colours or your theme's accent. never more than three flashes a second; a faster beat still shows, just softer.
+
+your lights get their old colours back when tide lets go. tide can start openrgb's server for you, with no window.
+"""
+category = "hardware"
+min_tide = "3.0.0"
+added    = "2026-11-01"
+listed   = true
+vendor   = []
+icon     = "icon.svg"
+
+[banner]
+grid   = "store/grid.webp"
+full   = "store/full.webp"
+motion = "store/motion.webp"
+
+[[need]]
+what  = "openrgb, with its sdk server on"
+check = "openrgb"
+how   = "sudo pacman -S openrgb"

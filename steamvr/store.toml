@@ -1,0 +1,36 @@
+# what the store says about steamvr. tools/publish.py reads this; none of
+# it goes in the zip. pictures live in store/ next to it.
+
+blurb    = "check the watch on your wrist and tide opens in vr. look away and it goes."
+about    = """
+a watch on your wrist. turn it toward you and tide's panel opens in front of you: the song, the lyrics, the queue, search and your library. press it with your controller tip or point the laser at it. look away and it goes after a couple of seconds.
+
+voice search runs on this computer (the whisper model, about 77 mb, is a button in the settings). a glow on the edge of your view can pulse with the music, never more than three flashes a second.
+"""
+category = "hardware"
+min_tide = "3.0.0"
+added    = "2026-11-01"
+listed   = true
+
+# python modules the zip carries in vendor/. pip requirement lines.
+# pyopenvr is a py3-none-any wheel with libopenvr_api inside.
+vendor   = ["openvr==2.12.1401"]
+# tide runs on 64-bit linux, where openvr loads libopenvr_api_64.so only.
+# the windows, mac and 32-bit libraries are 3.3 mb nobody loads.
+vendor_drop = ["openvr/*.dll", "openvr/*.dylib", "openvr/libopenvr_api_32.so"]
+
+icon     = "icon.svg"
+
+[banner]
+grid   = "store/grid.webp"
+full   = "store/full.webp"
+motion = "store/motion.webp"
+
+[[need]]
+what  = "steamvr and a headset"
+check = "steamvr"
+how   = "install steamvr from steam"
+
+# [[preview]]
+# kind = "clip"
+# file = "store/clip.webp"

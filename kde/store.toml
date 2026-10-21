@@ -1,0 +1,26 @@
+# what the store says about kde desktop. tools/publish.py reads this; none
+# of it goes in the zip. pictures live in store/ next to it.
+
+blurb    = "your kde desktop takes the song's colour while it plays."
+about    = """
+plasma's accent colour follows tide's, so highlights, buttons and sliders in every kde app match the song. go further and the wallpaper becomes a soft blur of the cover on every screen.
+
+pause for 3 seconds or switch it off and your own colours and wallpaper come back.
+"""
+category = "visuals"
+min_tide = "3.0.0"
+added    = "2026-11-01"
+listed   = true
+vendor   = []
+icon     = "icon.svg"
+
+[banner]
+grid   = "store/grid.webp"
+full   = "store/full.webp"
+motion = "store/motion.webp"
+
+[[need]]
+what      = "kde plasma 6"
+check     = "plasma"
+hard      = true
+hard_note = "only works on kde plasma"

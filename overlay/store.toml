@@ -1,0 +1,8 @@
+# the stream overlay is in the repo but not in the store until it's been
+# tested properly. publish.py skips it while listed is false.
+
+blurb    = "what's playing as a page for obs."
+category = "tools"
+min_tide = "3.0.0"
+listed   = false
+vendor   = []
