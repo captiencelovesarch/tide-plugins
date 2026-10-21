@@ -12,7 +12,7 @@ import types
 import unittest
 from pathlib import Path
 
-from tide.plugin_host import BUNDLED_DIR
+from tests._support import PLUGINS_DIR
 
 
 def free_port() -> int:
@@ -49,7 +49,7 @@ class OverlayTests(unittest.TestCase):
     def setUp(self):
         from PySide6.QtWidgets import QApplication
         from tide.plugin_host import PluginHost
-        from tests.test_plugins import FakePlayer, FakeQueue
+        from tests._support import FakePlayer, FakeQueue
         self.app = QApplication.instance() or QApplication([])
         self.port = free_port()
         tmp = Path(tempfile.mkdtemp(prefix="tide-overlay-"))
@@ -62,7 +62,7 @@ class OverlayTests(unittest.TestCase):
             video_id="abc", title="Noid", artists="Tyler, The Creator", album="CHROMAKOPIA",
             duration_seconds=285, thumbnail="", source="ytmusic")
         self.player.state = "playing"
-        self.host = PluginHost(None, self.player, self.queue, roots=[(BUNDLED_DIR, "bundled")],
+        self.host = PluginHost(None, self.player, self.queue, roots=[(PLUGINS_DIR, "store")],
                                state_file=tmp / "p.toml", settings_dir=tmp / "s",
                                stamp=tmp / "stamp", data_dir=tmp / "d")
         self.assertTrue(self.host.set_enabled("overlay", True), self.host.record("overlay").status)
@@ -153,11 +153,11 @@ class OverlayTests(unittest.TestCase):
 
     def test_a_taken_port_says_so(self):
         from tide.plugin_host import PluginHost
-        from tests.test_plugins import FakePlayer, FakeQueue
+        from tests._support import FakePlayer, FakeQueue
         tmp = Path(tempfile.mkdtemp(prefix="tide-overlay-"))
         (tmp / "s").mkdir()
         (tmp / "s" / "overlay.toml").write_text(f"port = {self.port}\n")
-        other = PluginHost(None, FakePlayer(), FakeQueue(), roots=[(BUNDLED_DIR, "bundled")],
+        other = PluginHost(None, FakePlayer(), FakeQueue(), roots=[(PLUGINS_DIR, "store")],
                            state_file=tmp / "p.toml", settings_dir=tmp / "s",
                            stamp=tmp / "stamp", data_dir=tmp / "d")
         try:

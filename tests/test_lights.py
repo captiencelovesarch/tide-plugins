@@ -17,10 +17,10 @@ import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-from tide.plugin_host import BUNDLED_DIR
+from tests._support import PLUGINS_DIR
 
 _pkg = types.ModuleType("tide_plugins_test_lights")
-_pkg.__path__ = [str(BUNDLED_DIR / "lights")]
+_pkg.__path__ = [str(PLUGINS_DIR / "lights")]
 sys.modules["tide_plugins_test_lights"] = _pkg
 wled = importlib.import_module("tide_plugins_test_lights.wled")
 openrgb = importlib.import_module("tide_plugins_test_lights.openrgb")
@@ -427,12 +427,12 @@ class LightsPluginTests(unittest.TestCase):
     def host(self, settings: str):
         from PySide6.QtWidgets import QApplication
         from tide.plugin_host import PluginHost
-        from tests.test_plugins import FakePlayer, FakeQueue
+        from tests._support import FakePlayer, FakeQueue
         self.app = QApplication.instance() or QApplication([])
         tmp = Path(tempfile.mkdtemp(prefix="tide-lights-"))
         (tmp / "s").mkdir()
         (tmp / "s" / "lights.toml").write_text(settings)
-        host = PluginHost(None, FakePlayer(), FakeQueue(), roots=[(BUNDLED_DIR, "bundled")],
+        host = PluginHost(None, FakePlayer(), FakeQueue(), roots=[(PLUGINS_DIR, "store")],
                           state_file=tmp / "p.toml", settings_dir=tmp / "s",
                           stamp=tmp / "stamp", data_dir=tmp / "d")
         self.addCleanup(host.shutdown)

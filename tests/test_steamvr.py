@@ -16,9 +16,9 @@ from pathlib import Path
 import numpy as np
 from PySide6.QtCore import Qt
 
-from tide.plugin_host import BUNDLED_DIR
+from tests._support import PLUGINS_DIR
 
-_GEO = BUNDLED_DIR / "steamvr" / "geometry.py"
+_GEO = PLUGINS_DIR / "steamvr" / "geometry.py"
 _spec = importlib.util.spec_from_file_location("steamvr_geometry", _GEO)
 geo = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(geo)
@@ -198,7 +198,7 @@ class FlashLimiterTests(unittest.TestCase):
 
 class RingTests(unittest.TestCase):
     def setUp(self):
-        spec = importlib.util.spec_from_file_location("steamvr_ring", BUNDLED_DIR / "steamvr" / "ring.py")
+        spec = importlib.util.spec_from_file_location("steamvr_ring", PLUGINS_DIR / "steamvr" / "ring.py")
         self.ring = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.ring)
 
@@ -279,12 +279,12 @@ class ForwarderTests(unittest.TestCase):
                                        QWidget)
         self.app = QApplication.instance() or QApplication([])
         spec = importlib.util.spec_from_file_location(
-            "tide_plugins_test_steamvr.panel", BUNDLED_DIR / "steamvr" / "panel.py",
+            "tide_plugins_test_steamvr.panel", PLUGINS_DIR / "steamvr" / "panel.py",
             submodule_search_locations=None)
         # panel.py imports its siblings relatively: load it as part of a package
         import types
         pkg = types.ModuleType("tide_plugins_test_steamvr")
-        pkg.__path__ = [str(BUNDLED_DIR / "steamvr")]
+        pkg.__path__ = [str(PLUGINS_DIR / "steamvr")]
         sys.modules["tide_plugins_test_steamvr"] = pkg
         self.panel = importlib.import_module("tide_plugins_test_steamvr.panel")
         self.root = QWidget()
@@ -354,10 +354,10 @@ class PluginLifecycleTests(unittest.TestCase):
     def test_starts_renders_and_stops(self):
         from PySide6.QtWidgets import QApplication
         from tide.plugin_host import PluginHost
-        from tests.test_plugins import FakePlayer, FakeQueue
+        from tests._support import FakePlayer, FakeQueue
         app = QApplication.instance() or QApplication([])
         tmp = Path(tempfile.mkdtemp(prefix="tide-vr-"))
-        host = PluginHost(None, FakePlayer(), FakeQueue(), roots=[(BUNDLED_DIR, "bundled")],
+        host = PluginHost(None, FakePlayer(), FakeQueue(), roots=[(PLUGINS_DIR, "store")],
                           state_file=tmp / "p.toml", settings_dir=tmp / "s",
                           stamp=tmp / "stamp")
         self.assertTrue(host.set_enabled("steamvr", True), host.record("steamvr").status)
@@ -437,7 +437,7 @@ class PokeTests(unittest.TestCase):
 def _seethrough():
     import types
     pkg = types.ModuleType("tide_plugins_see_steamvr")
-    pkg.__path__ = [str(BUNDLED_DIR / "steamvr")]
+    pkg.__path__ = [str(PLUGINS_DIR / "steamvr")]
     sys.modules["tide_plugins_see_steamvr"] = pkg
     return importlib.import_module("tide_plugins_see_steamvr.seethrough")
 
@@ -583,7 +583,7 @@ class GuardTests(unittest.TestCase):
     def test_a_failing_tick_is_noted_once_and_skipped(self):
         import types
         pkg = types.ModuleType("tide_plugins_guard_steamvr")
-        pkg.__path__ = [str(BUNDLED_DIR / "steamvr")]
+        pkg.__path__ = [str(PLUGINS_DIR / "steamvr")]
         sys.modules["tide_plugins_guard_steamvr"] = pkg
         try:
             vr = importlib.import_module("tide_plugins_guard_steamvr.vr")
@@ -654,7 +654,7 @@ class RingFeelTests(unittest.TestCase):
     def setUp(self):
         import types
         pkg = types.ModuleType("tide_plugins_ringfeel_steamvr")
-        pkg.__path__ = [str(BUNDLED_DIR / "steamvr")]
+        pkg.__path__ = [str(PLUGINS_DIR / "steamvr")]
         sys.modules["tide_plugins_ringfeel_steamvr"] = pkg
         self.ring = importlib.import_module("tide_plugins_ringfeel_steamvr.ring")
 
@@ -738,7 +738,7 @@ class RingFeelTests(unittest.TestCase):
 def _vr_pkg(name):
     import types
     pkg = types.ModuleType(name)
-    pkg.__path__ = [str(BUNDLED_DIR / "steamvr")]
+    pkg.__path__ = [str(PLUGINS_DIR / "steamvr")]
     sys.modules[name] = pkg
     return pkg
 
@@ -860,7 +860,7 @@ class PanelLookTests(unittest.TestCase):
         from PySide6.QtWidgets import QApplication
         from tide.plugin_host import PluginHost
         from tide.ui import typefaces
-        from tests.test_plugins import FakePlayer, FakeQueue
+        from tests._support import FakePlayer, FakeQueue
         self.app = QApplication.instance() or QApplication([])
         self.typefaces = typefaces
         self.saved_roles = typefaces.roles()
@@ -868,7 +868,7 @@ class PanelLookTests(unittest.TestCase):
                              "numbers": {"family": "DejaVu Sans Mono"}})
         tmp = Path(tempfile.mkdtemp(prefix="tide-vr-"))
         self.player = FakePlayer()
-        self.host = PluginHost(None, self.player, FakeQueue(), roots=[(BUNDLED_DIR, "bundled")],
+        self.host = PluginHost(None, self.player, FakeQueue(), roots=[(PLUGINS_DIR, "store")],
                                state_file=tmp / "p.toml", settings_dir=tmp / "s",
                                stamp=tmp / "stamp", data_dir=tmp / "d")
         self.assertTrue(self.host.set_enabled("steamvr", True))
@@ -1027,14 +1027,14 @@ class ToastPluginTests(unittest.TestCase):
         import types
         from PySide6.QtWidgets import QApplication
         from tide.plugin_host import PluginHost
-        from tests.test_plugins import FakePlayer, FakeQueue
+        from tests._support import FakePlayer, FakeQueue
         app = QApplication.instance() or QApplication([])
         tmp = Path(tempfile.mkdtemp(prefix="tide-vr-"))
         (tmp / "s").mkdir()
         (tmp / "s" / "steamvr.toml").write_text('toast = "follow"\nlyrics = false\n')
         player, queue = FakePlayer(), FakeQueue()
         player.state = "playing"
-        host = PluginHost(None, player, queue, roots=[(BUNDLED_DIR, "bundled")],
+        host = PluginHost(None, player, queue, roots=[(PLUGINS_DIR, "store")],
                           state_file=tmp / "p.toml", settings_dir=tmp / "s",
                           stamp=tmp / "stamp", data_dir=tmp / "d")
         try:

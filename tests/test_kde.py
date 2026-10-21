@@ -13,10 +13,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from tide.plugin_host import BUNDLED_DIR
+from tests._support import PLUGINS_DIR
 
 _pkg = types.ModuleType("tide_plugins_test_kde")
-_pkg.__path__ = [str(BUNDLED_DIR / "kde")]
+_pkg.__path__ = [str(PLUGINS_DIR / "kde")]
 sys.modules["tide_plugins_test_kde"] = _pkg
 desk = importlib.import_module("tide_plugins_test_kde.desk")
 art = importlib.import_module("tide_plugins_test_kde.art")
@@ -151,7 +151,7 @@ class KdePluginTests(unittest.TestCase):
         from PySide6.QtWidgets import QApplication
         from tide import config
         from tide.plugin_host import PluginHost
-        from tests.test_plugins import FakePlayer, FakeQueue
+        from tests._support import FakePlayer, FakeQueue
         self.app = QApplication.instance() or QApplication([])
         self.tmp = Path(tempfile.mkdtemp(prefix="tide-kde-"))
         (self.tmp / "s").mkdir()
@@ -205,7 +205,7 @@ class KdePluginTests(unittest.TestCase):
     def start(self, settings: str = ""):
         from tide.plugin_host import PluginHost
         (self.tmp / "s" / "kde.toml").write_text(settings)     # before the host reads it
-        self.host = PluginHost(None, self.player, self.queue, roots=[(BUNDLED_DIR, "bundled")],
+        self.host = PluginHost(None, self.player, self.queue, roots=[(PLUGINS_DIR, "store")],
                                state_file=self.tmp / "p.toml", settings_dir=self.tmp / "s",
                                stamp=self.tmp / "stamp", data_dir=self.tmp / "errors")
         self.assertTrue(self.host.set_enabled("kde", True), self.host.record("kde").status)
