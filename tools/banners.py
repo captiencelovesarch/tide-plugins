@@ -350,7 +350,128 @@ def discord(motion: bool):
     return out
 
 
-BUILDERS = {"steamvr": steamvr, "lights": lights, "kde": kde, "discord": discord}
+def _clip_frames(path: Path, w: int, h: int, seconds: float) -> list[Image.Image]:
+    """a recording as frames at FPS, scaled to cover w×h."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-t", f"{seconds}",
+                        "-vf", f"fps={FPS}", f"{tmp}/f%04d.png"], check=True)
+        return [cover(Image.open(p).convert("RGB"), w, h) for p in sorted(Path(tmp).glob("f*.png"))]
+
+
+def _seamless(frames: list[Image.Image], seconds: float, fade_s: float = 1.0) -> list[Image.Image]:
+    """``seconds`` of a recording that loops without a jump: the last
+    ``fade_s`` cross-fades into the start. needs seconds + fade_s of frames."""
+    n, f = round(seconds * FPS), round(fade_s * FPS)
+    if len(frames) < n + f:
+        raise SystemExit(f"the recording is too short for a {seconds} s loop")
+    out = list(frames[:n])
+    for i in range(f):
+        out[i] = Image.blend(frames[n + i], frames[i], (i + 1) / (f + 1))
+    return out
+
+
+def _pair(slug, name, bg, cap, glow, motion_frames=None):
+    """full and grid from one capture, and an optional moving grid cut."""
+    stills = {"full": full_stage(slug, name, bg), "grid": grid_stage(slug, bg)}
+    out = {k: st.frame(cap, st.glow(glow)) for k, st in stills.items()}
+    if motion_frames is not None:
+        st = stills["grid"]
+        g = st.glow(glow)
+        out["motion"] = [st.frame(f, g) for f in motion_frames]
+    return out
+
+
+# tide's adaptive accent for the songs these were captured on
+TIDE_BLUE = ((64, 64, 190), (28, 26, 90), (110, 120, 220))
+
+
+def powertools(motion: bool):
+    bg = _cover_glow(((90, 170, 190), (30, 60, 70), (150, 210, 225)))  # blackwater's accent
+    # the top of each editor, big enough to read: three at once don't fit
+    wins = []
+    for n in ("theme", "glyphs", "keymap"):
+        im = Image.open(src("powertools", f"{n}.png")).convert("RGB")
+        wins.append(im.crop((60, 50, im.width - 60, round(im.height * 0.62))))
+
+    def capture(win, box):
+        x, y, w, h = box
+        field = Image.blend(bg.crop((x, y, x + w, y + h)), Image.new("RGB", (w, h), (0, 0, 0)), 0.35)
+        c = field.convert("RGBA")
+        s = min((h - 48) / win.height, (w - 48) / win.width)
+        big = win.resize((round(win.width * s), round(win.height * s)), Image.LANCZOS)
+        _floating(c, big, ((w - big.width) // 2, (h - big.height) // 2), 14)
+        return c.convert("RGB")
+
+    cyan = (150, 220, 236, 110)
+    stills = {"full": full_stage("powertools", "tide powertools", bg),
+              "grid": grid_stage("powertools", bg)}
+    out = {k: st.frame(capture(wins[0], st.box), st.glow(cyan)) for k, st in stills.items()}
+    if motion:
+        # theme, glyph and keymap editors in turn
+        st = stills["grid"]
+        caps = [capture(wn, st.box) for wn in wins]
+        g, hold, fade = st.glow(cyan), 1.6, 0.8
+        T = len(caps) * (hold + fade)
+        frames = []
+        for i in range(round(T * FPS)):
+            k, r = divmod(i / FPS, hold + fade)
+            a, b = caps[int(k)], caps[(int(k) + 1) % len(caps)]
+            frames.append(st.frame(Image.blend(a, b, smooth((r - hold) / fade) if r > hold else 0.0), g))
+        out["motion"] = frames
+    return out
+
+
+def lyric_timing(motion: bool):
+    bg = _cover_glow(TIDE_BLUE)
+    still = Image.open(src("lyric-timing", "karaoke.png")).convert("RGB")
+    frames = None
+    if motion:
+        # 6 s of the sweep, word by word, as it played
+        w, h = GRID_BOX[2], GRID_BOX[3]
+        frames = _seamless(_clip_frames(src("lyric-timing", "karaoke.mp4"), w, h, 7.2), 6.0)
+    return _pair("lyric-timing", "precise lyric timing", bg, still, (110, 110, 230, 120), frames)
+
+
+def instrumental(motion: bool):
+    bg = _cover_glow(TIDE_BLUE)
+    shot = Image.open(src("instrumental", "instrumental.png")).convert("RGB")
+    # what tells the story: "playing instrumental", and the song it found
+    status = shot.crop((120, 108, 760, 222))
+    bar = shot.crop((80, 1088, 1000, 1282))
+    blue = (110, 110, 230, 120)
+
+    def capture(box):
+        x, y, w, h = box
+        field = Image.blend(bg.crop((x, y, x + w, y + h)), Image.new("RGB", (w, h), (0, 0, 0)), 0.35)
+        c = field.convert("RGBA")
+        s = (w - 56) / bar.width
+        b = bar.resize((round(bar.width * s), round(bar.height * s)), Image.LANCZOS)
+        st = status.resize((round(status.width * s), round(status.height * s)), Image.LANCZOS)
+        top = (h - (st.height + 24 + b.height)) // 2
+        _floating(c, st, (28, top), 12)
+        _floating(c, b, (28, top + st.height + 24), 12)
+        return c.convert("RGB")
+
+    stills = {"full": full_stage("instrumental", "instrumental finder", bg),
+              "grid": grid_stage("instrumental", bg)}
+    # a still only: the capture of it searching came out already swapped
+    return {k: st.frame(capture(st.box), st.glow(blue)) for k, st in stills.items()}
+
+
+def vis_tiles(motion: bool):
+    bg = _cover_glow(TIDE_BLUE)
+    still = Image.open(src("vis-tiles", "tiles.png")).convert("RGB")
+    frames = None
+    if motion:
+        w, h = GRID_BOX[2], GRID_BOX[3]
+        frames = _seamless(_clip_frames(src("vis-tiles", "tiles.mp4"), w, h, 7.5), 6.5)
+    return _pair("vis-tiles", "more visualizer tiles", bg, still, (110, 110, 230, 120), frames)
+
+
+BUILDERS = {"steamvr": steamvr, "lights": lights, "kde": kde, "discord": discord,
+            "powertools": powertools, "lyric-timing": lyric_timing,
+            "instrumental": instrumental, "vis-tiles": vis_tiles}
 
 
 def main() -> int:

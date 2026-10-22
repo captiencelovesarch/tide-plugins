@@ -1,0 +1,14 @@
+# what the store says about instrumental finder. the plugin itself isn't in this repo
+# yet (it's still in tide's core): listed stays false until it is, so
+# publish.py skips it. the banner is ready.
+
+blurb    = "mute the vocals: tide finds the song's instrumental and you sing over it."
+category = "lyrics"
+min_tide = "3.0.0"
+listed   = false
+vendor   = []
+icon     = "icon.svg"
+
+[banner]
+grid   = "store/grid.webp"
+full   = "store/full.webp"
