@@ -1,0 +1,8 @@
+[plugin]
+slug        = "instrumental"
+name        = "instrumental finder"
+description = "mute the vocals: tide finds the song's instrumental and you sing over it."
+version     = "1.0.0"
+api         = 1
+entry       = "plugin:Instrumental"
+uses        = ["playback", "lyrics", "network"]

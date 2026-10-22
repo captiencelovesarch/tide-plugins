@@ -1,11 +1,16 @@
-# what the store says about instrumental finder. the plugin itself isn't in this repo
-# yet (it's still in tide's core): listed stays false until it is, so
-# publish.py skips it. the banner is ready.
+# what the store says about instrumental finder. tools/publish.py reads
+# this; none of it goes in the zip. pictures live in store/ next to it.
 
 blurb    = "mute the vocals: tide finds the song's instrumental and you sing over it."
+about    = """
+a [mute lyrics] toggle in the lyrics view. tide looks through every source you have on for the song's instrumental or karaoke cut, swaps it in where you are, and swaps the vocal back when you toggle it off.
+
+it matches on title, artist and length, and skips karaoke channels that aren't the artist, so a cover in a different key doesn't sneak in.
+"""
 category = "lyrics"
 min_tide = "3.0.0"
-listed   = false
+added    = "2026-10-22"
+listed   = true
 vendor   = []
 icon     = "icon.svg"
 
