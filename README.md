@@ -273,6 +273,8 @@ search and the library, through whatever source is active (youtube music, usuall
 | `radio(track)` | start a radio from a song |
 | `play_next(track)` | put it after the current song |
 | `play(tracks, start=0, shuffle=False)` | replace the queue |
+| `play_at(track, seconds)` | play a song and jump to `seconds` as soon as it plays, for a swap that feels like the same song carrying on |
+| `search_all(query, limit=10)` | `(source name, TrackInfo)` pairs from every source that's switched on. it blocks: call it inside `ctx.jobs.run` |
 
 only hand back `TrackInfo`s that tide gave you. they carry tide's own record of the song, which is what gets played.
 
@@ -294,6 +296,8 @@ nothing is fetched until a plugin subscribes. tide shares one lyrics tracker bet
 | `line_changed` | signal(the line being sung, or `None`) |
 | `sheet()` | the current `(times, lines)`, or `None` |
 | `lines_around(position)` | `(before, now, next)` at `position` seconds. all `None` without timed lyrics |
+| `add_aligner(fn)` | precise word timing. `fn(sheet, stream, should_stop, say)` gets tide's word sheet (a list of `WordLine`) and the `StreamRef` playing, and returns a better sheet or `None`. it runs off the gui thread, after the lyrics' own word timing. precise lyric timing uses it |
+| `remove_aligner()` | take it away again (tide does when you stop) |
 
 #### ctx.beats
 
@@ -343,8 +347,23 @@ use this, or a thread you own and stop in `stop()`, for anything that blocks: ne
 | | |
 |---|---|
 | `toast(text, action_label=None, on_action=None)` | a toast in tide's window, with an optional button |
+| `add_tray_action(label, fn, checkable=False, checked=False)` | an item in the tray menu, above quit. returns a handle with `set_label`, `set_checked` (without calling you back), `checked` and `set_visible` |
+| `add_visualizer_tile(kind, label, factory, knobs=())` | a tile any visualizer slot can show. `factory(engine)` builds one: subclass `tide.plugin_vis.PlayTile` and draw in `paint_graphics(p, w, h, f)`. `knobs` are choice settings of yours that the tile's menu offers, and `self.knob(key, default)` reads them. a tile can add rows to its menu with `menu_actions()` → `[(label, fn)]` |
+| `add_lyrics_toggle(label, fn)` | a `[label]` toggle in the lyrics view's row (karaoke, sweep...). `fn(on, track)` on a click. returns a handle with `set_checked(on)` and `set_status(text)`, one line under the toggles |
+| `add_settings_button(section, label, fn, tooltip="")` | a button in tide's settings dialog, in `"power tools"` or `"shortcuts"`. `fn(dialog)` runs a turn after the click, so you can open a window of your own over it |
 
-that's all of it in api 1. there's no hook yet for a page of your own, a tray item, a player bar control or a keyboard shortcut. a window of your own works (adopt it).
+everything you add goes when your plugin stops. there's no hook yet for a page of your own, a player bar control or a keyboard shortcut. a window of your own works (adopt it).
+
+#### ctx.sources
+
+a music source of your own: search, the library, playback. it sits in tide's source panel with its own switch, like youtube music. extra sources and local files are built on it.
+
+| | |
+|---|---|
+| `register(source, on=True)` | add a `MusicSource` (from `tide.plugin_api`). `on`: whether it starts switched on when tide has never seen it; after that the user's switch is kept. if it was the active source last time, it is again |
+| `is_on(slug)` | is that source switched on? |
+
+a source with a `configure(parent)` method gets the gear in the source panel (local files' folder picker). tide takes your sources away when you stop.
 
 #### ctx.speech
 
@@ -375,6 +394,13 @@ the one tide module you may import. everything else under `tide.*` can change in
 | `STRENGTH` | `{"subtle": 0.45, "normal": 0.7, "loud": 1.0}`, for a strength setting |
 | `cover_colors(qimage)` | two rgb 0..1 tuples from a cover, lifted to be shown as light. a black-and-white cover gives white |
 | `cover_palette(qimage)` | up to three `((h, s, v), share)` from a cover, biggest first |
+| `MusicSource`, `Track`, `StreamRef`, `NotSupportedError`, the `*Entry` / `*Detail` / `Shelf` types | for a source of your own (`ctx.sources`). `resolve_stream` hands back a `StreamRef(backend="mpv", payload=url_or_path)` |
+| `stream_cache_get(source, key)`, `stream_cache_put(source, key, url, ttl_seconds)`, `STREAM_NEVER_EXPIRES` | resolved urls kept across launches |
+| `store_art(key, data)` | a cover you read from a file, kept in tide's art cache. returns the url to put in `Track.thumbnail` |
+| `Word`, `WordLine`, `shift_line`, `split_words` | for an aligner (`ctx.lyrics.add_aligner`) |
+| `TrackInfo.artist_link`, `TrackInfo.album_link` | the first artist's and the album's pages, or `""` |
+
+for a visualizer tile there's `tide.plugin_vis`: `PlayTile`, `CanvasTile`, `Frame`, `VisEngine`, and the helpers tide's own tiles draw with (`alpha`, `mix`, `bloom`, `paint_outline`, `styled_case`).
 
 `now` is seconds from `time.monotonic()`.
 
