@@ -1,0 +1,24 @@
+# what the store says about discord presence. tools/publish.py reads this;
+# none of it goes in the zip. pictures live in store/ next to it.
+
+blurb    = "what you're listening to, on your discord profile."
+about    = """
+the song, the artist and a progress bar on your profile, linked to the track on youtube music. turn on the live lyric and the line being sung shows instead of the album.
+
+you make your own discord app for it (thirty seconds at the developer portal), so the name and picture people see are yours. the tray menu has a "hide from discord" switch for when you'd rather not.
+"""
+category = "tools"
+min_tide = "3.0.0"
+added    = "2026-10-21"
+listed   = true
+vendor   = ["pypresence"]
+icon     = "icon.svg"
+
+[banner]
+grid = "store/grid.webp"
+full = "store/full.webp"
+motion = "store/motion.webp"
+
+[[need]]
+what  = "the discord app (or vesktop), open"
+how   = "the browser version can't show a presence"

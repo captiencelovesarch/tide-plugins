@@ -1,0 +1,87 @@
+[plugin]
+slug        = "discord"
+name        = "discord presence"
+description = "what you're listening to on your discord profile, with the lyric line if you like."
+version     = "1.0.0"
+api         = 1
+entry       = "plugin:Discord"
+# pure python; the store's zip carries it in vendor/
+requires    = ["pypresence"]
+uses        = ["playback", "lyrics", "network"]
+
+[[setting]]
+key      = "app_id"
+label    = "app id"
+kind     = "str"
+default  = ""
+secret   = false
+help_url = "https://discord.com/developers/applications"
+tooltip  = "create an application at the discord developer portal, copy its application id, paste it here. discord shows whatever name and image you gave that app."
+
+[[setting]]
+key     = "lyrics"
+label   = "show the live lyric"
+kind    = "bool"
+default = false
+tooltip = "the current synced line replaces artist · album on your profile. fast lines show two at a time so none get skipped. everyone can see it, and lyrics can be explicit."
+
+[[setting]]
+key     = "show_paused"
+label   = "keep a '⏸ paused' presence instead of clearing it"
+kind    = "bool"
+default = false
+
+[[setting]]
+key     = "show_progress"
+label   = "show the elapsed / total progress bar"
+kind    = "bool"
+default = true
+
+[[setting]]
+key     = "activity_type"
+label   = "activity verb"
+kind    = "choice"
+choices = [["listening", "listening to …"], ["playing", "playing …"], ["watching", "watching …"]]
+default = "listening"
+
+[[setting]]
+key     = "status_display"
+label   = "member list shows"
+kind    = "choice"
+choices = [["song", "the song"], ["app", "the app name"]]
+default = "song"
+tooltip = "what people see next to your name in a server: \"listening to <song>\" or \"listening to <your app's name>\"."
+
+[[setting]]
+key     = "links"
+label   = "link the song and add a listen button"
+kind    = "bool"
+default = true
+tooltip = "title, artist and cover open the track on its service. the button shows for everyone else, not on your own profile. local files never get links."
+
+[[setting]]
+key     = "hide_local"
+label   = "don't share local files"
+kind    = "bool"
+default = false
+
+[[setting]]
+key     = "hidden"
+label   = "hide from discord for now"
+kind    = "bool"
+default = false
+tooltip = "clears your presence until you switch it back. the tray menu has the same switch."
+
+[[setting]]
+key     = "details_template"
+label   = "line 1"
+kind    = "str"
+default = ""
+tooltip = "takes {title} {artists} {album} {source}. empty is {title}."
+
+[[setting]]
+key     = "state_template"
+label   = "line 2"
+kind    = "str"
+default = ""
+tooltip = "takes {title} {artists} {album} {source}. empty is {artists} · {album}. a live lyric still takes over while one plays."
