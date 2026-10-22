@@ -143,7 +143,11 @@ def full_stage(slug, name, bg, box=FULL_BOX):
     d = ImageDraw.Draw(text)
     x, y = 76, 196
     ty = y + m.height + 36
-    d.text((x, ty), name, font=ImageFont.truetype(FONT_BOLD, 64), fill=(255, 255, 255, 255))
+    # a long name shrinks until it clears the capture frame
+    size = 64
+    while size > 36 and d.textlength(name, font=ImageFont.truetype(FONT_BOLD, size)) > box[0] - x - 36:
+        size -= 2
+    d.text((x, ty), name, font=ImageFont.truetype(FONT_BOLD, size), fill=(255, 255, 255, 255))
     d.text((x + 2, ty + 80), "× tide", font=ImageFont.truetype(FONT, 40), fill=(255, 255, 255, 215))
     st.top += [(m, (x, y)), (text, (0, 0))]
     return st
@@ -299,7 +303,54 @@ def kde(motion: bool):
     return out
 
 
-BUILDERS = {"steamvr": steamvr, "lights": lights, "kde": kde}
+def _cover_glow(colors) -> Image.Image:
+    """tide's own look: a dark field with soft light in a cover's colours."""
+    bg = Image.new("RGB", (W, H), (7, 8, 7))
+    layer = Image.new("RGB", (W, H), (0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    for box, color in zip(((640, 120, 1260, 780), (-140, 360, 540, 920), (800, -280, 1400, 240)), colors):
+        d.ellipse(box, fill=color)
+    return Image.blend(bg, layer.filter(ImageFilter.GaussianBlur(140)), 0.6)
+
+
+def _floating(canvas: Image.Image, img: Image.Image, xy, r: int) -> None:
+    """a capture as a card of its own, rounded, with a soft shadow."""
+    sh = Image.new("RGBA", (img.width + 80, img.height + 80), (0, 0, 0, 0))
+    ImageDraw.Draw(sh).rounded_rectangle((40, 48, 40 + img.width, 48 + img.height), r, fill=(0, 0, 0, 150))
+    canvas.alpha_composite(sh.filter(ImageFilter.GaussianBlur(16)), (xy[0] - 40, xy[1] - 40))
+    canvas.paste(img, xy, rounded_mask(img.size, r))
+
+
+def discord(motion: bool):
+    # discord's brand rules: no discord logo, nothing in its colours or
+    # look. the background is tide's glow in the cover's colours instead
+    bg = _cover_glow(((89, 110, 79), (45, 58, 40), (146, 152, 124)))
+    cards = [Image.open(src("discord", f"activity-{i}.png")).convert("RGB") for i in (1, 2)]
+
+    def capture(card, box):
+        """the card floating on the glow behind it, sized for this frame."""
+        x, y, w, h = box
+        field = Image.blend(bg.crop((x, y, x + w, y + h)), Image.new("RGB", (w, h), (0, 0, 0)), 0.35)
+        c = field.convert("RGBA")
+        s = min(1.25, (w - 56) / card.width)
+        big = card.resize((round(card.width * s), round(card.height * s)), Image.LANCZOS)
+        _floating(c, big, ((w - big.width) // 2, (h - big.height) // 2), round(12 * s))
+        return c.convert("RGB")
+
+    green = (150, 180, 140, 120)
+    stills = {"full": full_stage("discord", "discord presence", bg), "grid": grid_stage("discord", bg)}
+    out = {k: st.frame(capture(cards[0], st.box), st.glow(green)) for k, st in stills.items()}
+    if motion:
+        # two captures six seconds apart: the progress bar moves on
+        st = stills["grid"]
+        a, b = (capture(c, st.box) for c in cards)
+        glow, T = st.glow(green), 6.8
+        out["motion"] = [st.frame(Image.blend(a, b, two_state(i / FPS, T, 2.4, 1.0)), glow)
+                         for i in range(round(T * FPS))]
+    return out
+
+
+BUILDERS = {"steamvr": steamvr, "lights": lights, "kde": kde, "discord": discord}
 
 
 def main() -> int:
