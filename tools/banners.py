@@ -148,7 +148,8 @@ def full_stage(slug, name, bg, box=FULL_BOX):
     while size > 36 and d.textlength(name, font=ImageFont.truetype(FONT_BOLD, size)) > box[0] - x - 36:
         size -= 2
     d.text((x, ty), name, font=ImageFont.truetype(FONT_BOLD, size), fill=(255, 255, 255, 255))
-    d.text((x + 2, ty + 80), "× tide", font=ImageFont.truetype(FONT, 40), fill=(255, 255, 255, 215))
+    if not name.startswith("tide "):     # "tide powertools × tide" says it twice
+        d.text((x + 2, ty + 80), "× tide", font=ImageFont.truetype(FONT, 40), fill=(255, 255, 255, 215))
     st.top += [(m, (x, y)), (text, (0, 0))]
     return st
 
