@@ -1,0 +1,20 @@
+[plugin]
+slug        = "lyric-timing"
+name        = "precise lyric timing"
+description = "listens to the song and puts every word where it's sung."
+version     = "1.0.0"
+api         = 1
+entry       = "plugin:LyricTiming"
+# python-onnxruntime-cpu on arch
+requires    = ["onnxruntime"]
+uses        = ["lyrics", "network", "files"]
+
+[[setting]]
+key   = "download"
+label = "download the speech model (95 mb)"
+kind  = "action"
+
+[[setting]]
+key   = "remove"
+label = "remove the speech model"
+kind  = "action"

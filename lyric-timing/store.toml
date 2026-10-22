@@ -1,11 +1,16 @@
-# what the store says about precise lyric timing. the plugin itself isn't in this repo
-# yet (it's still in tide's core): listed stays false until it is, so
-# publish.py skips it. the banner is ready.
+# what the store says about precise lyric timing. tools/publish.py reads
+# this; none of it goes in the zip. pictures live in store/ next to it.
 
 blurb    = "listens to the song and puts every word where it's sung."
+about    = """
+a small speech model (wav2vec2, about 95 mb, downloaded from this page) listens to the song on your computer and moves each word to where it's sung. lyrics whose timing belongs to a different cut of the song get pulled back onto the audio.
+
+the model is english-trained and hears the singer through the band, so with a loud mix or another language the lyrics keep their own timing. nothing leaves your computer.
+"""
 category = "lyrics"
 min_tide = "3.0.0"
-listed   = false
+added    = "2026-10-22"
+listed   = true
 vendor   = []
 icon     = "icon.svg"
 
@@ -13,3 +18,8 @@ icon     = "icon.svg"
 grid   = "store/grid.webp"
 full   = "store/full.webp"
 motion = "store/motion.webp"
+
+[[need]]
+what  = "python-onnxruntime-cpu"
+check = "module:onnxruntime"
+how   = "sudo pacman -S python-onnxruntime-cpu"
