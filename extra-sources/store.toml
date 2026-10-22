@@ -1,0 +1,15 @@
+# what the store says about extra sources. the plugin itself isn't in
+# this repo yet (it's still in tide's core): listed stays false until it
+# is, so publish.py skips it. the banner is ready.
+
+blurb    = "search soundcloud, bandcamp and mixcloud from tide. no sign-in."
+category = "sources"
+min_tide = "3.0.0"
+listed   = false
+vendor   = []
+icon     = "icon.svg"
+
+[banner]
+grid   = "store/grid.webp"
+full   = "store/full.webp"
+motion = "store/motion.webp"

@@ -470,9 +470,68 @@ def vis_tiles(motion: bool):
     return _pair("vis-tiles", "more visualizer tiles", bg, still, (110, 110, 230, 120), frames)
 
 
+def _stacked(bg, box, cards, max_scale=1.0):
+    """a few captures as cards stacked down the middle of the frame."""
+    x, y, w, h = box
+    field = Image.blend(bg.crop((x, y, x + w, y + h)), Image.new("RGB", (w, h), (0, 0, 0)), 0.35)
+    c = field.convert("RGBA")
+    gap = 22
+    s = min(max_scale, (w - 56) / max(im.width for im in cards),
+            (h - 80 - gap * (len(cards) - 1)) / sum(im.height for im in cards))
+    sized = [im.resize((round(im.width * s), round(im.height * s)), Image.LANCZOS) for im in cards]
+    top = (h - (sum(im.height for im in sized) + gap * (len(sized) - 1))) // 2
+    for im in sized:
+        _floating(c, im, ((w - im.width) // 2, top), 12)
+        top += im.height + gap
+    return c.convert("RGB")
+
+
+def local_files(motion: bool):
+    bg = _cover_glow(((120, 200, 225), (30, 70, 90), (170, 225, 240)))
+    shot = Image.open(src("local-files", "local.png")).convert("RGB")
+    # the folder's three songs, and one of them loaded (local files has no cover art yet)
+    cards = [shot.crop((137, 112, 1000, 388)), shot.crop((75, 1062, 1000, 1280))]
+    glow = (150, 220, 236, 110)
+    stills = {"full": full_stage("local-files", "local files", bg),
+              "grid": grid_stage("local-files", bg)}
+    return {k: st.frame(_stacked(bg, st.box, cards), st.glow(glow)) for k, st in stills.items()}
+
+
+def extra_sources(motion: bool):
+    bg = _cover_glow(((200, 110, 60), (70, 30, 20), (230, 150, 90)))
+    # no soundcloud, bandcamp or mixcloud logos: soundcloud's is for
+    # attribution only, the other two publish no terms. their names show
+    # in tide's own sources page instead
+    sources = Image.open(src("extra-sources", "sources.png")).convert("RGB").crop((150, 340, 1000, 615))
+    results = [Image.open(src("extra-sources", f"{n}.png")).convert("RGB").crop((150, 250, 1000, 560))
+               for n in ("soundcloud", "bandcamp", "mixcloud")]
+    glow = (240, 160, 110, 110)
+
+    def capture(box, res):
+        return _stacked(bg, box, [sources, res])
+
+    stills = {"full": full_stage("extra-sources", "extra sources", bg),
+              "grid": grid_stage("extra-sources", bg)}
+    out = {k: st.frame(capture(st.box, results[0]), st.glow(glow)) for k, st in stills.items()}
+    if motion:
+        # soundcloud, bandcamp and mixcloud results in turn
+        st = stills["grid"]
+        caps = [capture(st.box, r) for r in results]
+        g, hold, fade = st.glow(glow), 1.6, 0.8
+        T = len(caps) * (hold + fade)
+        frames = []
+        for i in range(round(T * FPS)):
+            k, r = divmod(i / FPS, hold + fade)
+            a, b = caps[int(k)], caps[(int(k) + 1) % len(caps)]
+            frames.append(st.frame(Image.blend(a, b, smooth((r - hold) / fade) if r > hold else 0.0), g))
+        out["motion"] = frames
+    return out
+
+
 BUILDERS = {"steamvr": steamvr, "lights": lights, "kde": kde, "discord": discord,
             "powertools": powertools, "lyric-timing": lyric_timing,
-            "instrumental": instrumental, "vis-tiles": vis_tiles}
+            "instrumental": instrumental, "vis-tiles": vis_tiles,
+            "local-files": local_files, "extra-sources": extra_sources}
 
 
 def main() -> int:

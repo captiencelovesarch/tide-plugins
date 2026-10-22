@@ -1,0 +1,14 @@
+# what the store says about local files. the plugin itself isn't in this
+# repo yet (it's still in tide's core): listed stays false until it is,
+# so publish.py skips it. the banner is ready.
+
+blurb    = "play the music on your computer, in the same queue as youtube music."
+category = "sources"
+min_tide = "3.0.0"
+listed   = false
+vendor   = []
+icon     = "icon.svg"
+
+[banner]
+grid   = "store/grid.webp"
+full   = "store/full.webp"
