@@ -1,0 +1,8 @@
+[plugin]
+slug        = "powertools"
+name        = "tide powertools"
+description = "the theme, glyph and keymap editors, for when you want to change everything."
+version     = "1.0.0"
+api         = 1
+entry       = "plugin:Powertools"
+uses        = ["ui", "files"]
