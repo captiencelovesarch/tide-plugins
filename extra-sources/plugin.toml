@@ -1,0 +1,8 @@
+[plugin]
+slug        = "extra-sources"
+name        = "extra sources"
+description = "soundcloud, bandcamp and mixcloud as sources: search them, queue them, mix them in with youtube music."
+version     = "1.0.0"
+api         = 1
+entry       = "plugin:ExtraSources"
+uses        = ["network"]

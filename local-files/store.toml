@@ -1,14 +1,24 @@
-# what the store says about local files. the plugin itself isn't in this
-# repo yet (it's still in tide's core): listed stays false until it is,
-# so publish.py skips it. the banner is ready.
+# what the store says about local files. tools/publish.py reads this;
+# none of it goes in the zip. pictures live in store/ next to it.
 
 blurb    = "play the music on your computer, in the same queue as youtube music."
+about    = """
+mp3, flac, ogg, opus, m4a and the rest, from your music folder (or one you pick with the gear in the source panel). search it, browse it by album, and queue it next to youtube music.
+
+covers come from a cover.jpg in the folder, or the art inside the files.
+"""
 category = "sources"
 min_tide = "3.0.0"
-listed   = false
+added    = "2026-10-22"
+listed   = true
 vendor   = []
 icon     = "icon.svg"
 
 [banner]
 grid   = "store/grid.webp"
 full   = "store/full.webp"
+
+[[need]]
+what  = "python-watchdog, to pick up new files while tide runs (optional)"
+check = "module:watchdog"
+how   = "sudo pacman -S python-watchdog"

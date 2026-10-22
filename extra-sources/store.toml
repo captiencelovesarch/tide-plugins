@@ -1,11 +1,16 @@
-# what the store says about extra sources. the plugin itself isn't in
-# this repo yet (it's still in tide's core): listed stays false until it
-# is, so publish.py skips it. the banner is ready.
+# what the store says about extra sources. tools/publish.py reads this;
+# none of it goes in the zip. pictures live in store/ next to it.
 
 blurb    = "search soundcloud, bandcamp and mixcloud from tide. no sign-in."
+about    = """
+three more places to find music, next to youtube music. search them on their own or all at once (federated search in the source panel), and their songs go in the same queue as everything else.
+
+no accounts: it's the public catalogue of each. soundcloud and bandcamp come switched on, mixcloud's dj mixes and radio shows are a switch away in the source panel.
+"""
 category = "sources"
 min_tide = "3.0.0"
-listed   = false
+added    = "2026-10-22"
+listed   = true
 vendor   = []
 icon     = "icon.svg"
 

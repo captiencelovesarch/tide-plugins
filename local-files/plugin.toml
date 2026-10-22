@@ -1,0 +1,27 @@
+[plugin]
+slug        = "local-files"
+name        = "local files"
+description = "the music on your computer as a source, in the same queue as youtube music."
+version     = "1.0.0"
+api         = 1
+entry       = "plugin:LocalFiles"
+uses        = ["files"]
+
+[[setting]]
+key     = "folder"
+label   = "music folder"
+kind    = "str"
+default = ""
+tooltip = "empty is your music folder (xdg's, or ~/Music). the gear in the source panel has a picker."
+
+[[setting]]
+key     = "watch"
+label   = "pick up new files while tide runs"
+kind    = "bool"
+default = true
+tooltip = "off: tide reads the folder at launch and when you change it, and that's all."
+
+[[setting]]
+key   = "rescan"
+label = "read the folder again"
+kind  = "action"
