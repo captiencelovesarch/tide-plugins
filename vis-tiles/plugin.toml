@@ -1,0 +1,67 @@
+[plugin]
+slug        = "vis-tiles"
+name        = "more visualizer tiles"
+description = "four more tiles for the visualizer: the loudness river, a spectrogram, a halo round the cover and a beat tapper."
+version     = "1.0.0"
+api         = 1
+entry       = "plugin:VisTiles"
+uses        = ["ui"]
+
+[[setting]]
+key     = "river_view"
+label   = "river shows"
+kind    = "choice"
+choices = [["near", "the next 16 seconds"], ["far", "the next 48 seconds"], ["whole", "the whole song"]]
+default = "near"
+tooltip = "how much of the song's loudness the river shows around the playhead."
+
+[[setting]]
+key     = "spectrogram_history"
+label   = "spectrogram history"
+kind    = "choice"
+choices = [[6, "6 seconds"], [12, "12 seconds"], [24, "24 seconds"]]
+default = 12
+
+[[setting]]
+key     = "spectrogram_contrast"
+label   = "spectrogram contrast"
+kind    = "choice"
+choices = [["soft", "soft"], ["normal", "normal"], ["punchy", "punchy"]]
+default = "normal"
+tooltip = "punchy lifts quiet detail; soft keeps only what's loud."
+
+[[setting]]
+key     = "halo_spokes"
+label   = "halo spokes"
+kind    = "choice"
+choices = [[48, "48"], [96, "96"], [144, "144"]]
+default = 96
+
+[[setting]]
+key     = "halo_punch"
+label   = "halo cover on the kick"
+kind    = "choice"
+choices = [["off", "still"], ["gentle", "gentle"], ["hard", "hard"]]
+default = "gentle"
+
+[[setting]]
+key     = "tapper_target"
+label   = "tapper tap on"
+kind    = "choice"
+choices = [["beats", "every beat"], ["downbeats", "downbeats"], ["kicks", "kicks"]]
+default = "beats"
+
+[[setting]]
+key     = "tapper_window"
+label   = "tapper timing window"
+kind    = "choice"
+choices = [["tight", "tight"], ["normal", "normal"], ["loose", "loose"]]
+default = "normal"
+
+[[setting]]
+key     = "tapper_offset"
+label   = "tapper your latency"
+kind    = "choice"
+choices = [[-60, "-60 ms"], [-30, "-30 ms"], [0, "0 ms"], [30, "+30 ms"], [60, "+60 ms"]]
+default = 0
+tooltip = "if the tapper says you're always late (bluetooth, a slow screen), move this toward what it suggests."

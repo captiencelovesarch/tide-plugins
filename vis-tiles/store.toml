@@ -1,11 +1,16 @@
-# what the store says about more visualizer tiles. the plugin itself isn't in this repo
-# yet (it's still in tide's core): listed stays false until it is, so
-# publish.py skips it. the banner is ready.
+# what the store says about more visualizer tiles. tools/publish.py reads
+# this; none of it goes in the zip. pictures live in store/ next to it.
 
 blurb    = "four more tiles for the visualizer: the loudness river, a spectrogram, a halo round the cover and a beat tapper."
+about    = """
+the river is the song's loudness flowing past a playhead, so you see the drop coming. the spectrogram is the last few seconds of sound as a heat map. the halo puts the cover in the middle with the spectrum round it. the tapper is a little rhythm game: tap on the beat and it tells you how many ms off you were.
+
+pick one in any slot's menu in the visualizer (hover a tile, [edit]). their knobs are in that menu and on this page.
+"""
 category = "visuals"
 min_tide = "3.0.0"
-listed   = false
+added    = "2026-10-22"
+listed   = true
 vendor   = []
 icon     = "icon.svg"
 
