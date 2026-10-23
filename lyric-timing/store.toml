@@ -6,6 +6,8 @@ about    = """
 a small speech model (wav2vec2, about 95 mb, downloaded from this page) listens to the song on your computer and moves each word to where it's sung. lyrics whose timing belongs to a different cut of the song get pulled back onto the audio.
 
 the model is english-trained and hears the singer through the band, so with a loud mix or another language the lyrics keep their own timing. nothing leaves your computer.
+
+karaoke mode and the word-by-word sweep in the lyrics tab come with it too.
 """
 category = "lyrics"
 min_tide = "3.0.0"

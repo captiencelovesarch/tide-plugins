@@ -17,6 +17,8 @@ class LyricTiming:
         self._downloading = False
         self._progress = (0, align.MODEL_BYTES)
         align.MODEL_ROOT = ctx.paths.data_dir / "models"
+        # karaoke mode and the word sweep come with this plugin
+        ctx.lyrics.enable_word_view()
         self._adopt_old_model()
         self._timer = ctx.adopt(QTimer())
         self._timer.setInterval(400)
