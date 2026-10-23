@@ -1,7 +1,137 @@
 {
   "format": 1,
-  "generated": "2026-10-21T20:19:34Z",
+  "generated": "2026-10-23T03:26:22Z",
   "plugins": [
+    {
+      "slug": "discord",
+      "name": "discord presence",
+      "blurb": "what you're listening to, on your discord profile.",
+      "about": "the song, the artist and a progress bar on your profile, linked to the track on youtube music. turn on the live lyric and the line being sung shows instead of the album.\n\nyou make your own discord app for it (thirty seconds at the developer portal), so the name and picture people see are yours. the tray menu has a \"hide from discord\" switch for when you'd rather not.",
+      "version": "1.0.0",
+      "api": 1,
+      "size": 27754,
+      "sha256": "e2c43c48f2bfe9641776bd197658b53da4fb5faa85897b8d6099d5f9bba5d1c8",
+      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.0.0/discord.zip",
+      "uses": [
+        "playback",
+        "lyrics",
+        "network"
+      ],
+      "needs": [
+        {
+          "what": "the discord app (or vesktop), open",
+          "how": "the browser version can't show a presence"
+        }
+      ],
+      "author": "captience",
+      "official": true,
+      "category": "tools",
+      "repo": "https://github.com/captiencelovesarch/tide-plugins/tree/main/discord",
+      "added": "2026-10-21",
+      "vendors": [
+        "pypresence"
+      ],
+      "min_tide": "3.0.0",
+      "icon": {
+        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.0.0/discord-icon.svg",
+        "sha256": "c82e0dc4686f20e135c0eea9f53c5a4738e8357b9a7a8eb05b59f387f6203757"
+      },
+      "banner": {
+        "grid": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.0.0/discord-grid.webp",
+          "sha256": "0390a813829268883c8976153911acc9570e740c35440995d2df5a9a7b2a131d"
+        },
+        "full": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.0.0/discord-full.webp",
+          "sha256": "653181859ef1d4035a6632cb9fca405703708c9e376c86613791e3968771fc77"
+        },
+        "motion": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.0.0/discord-motion.webp",
+          "sha256": "a9d3503513e29d6cbbd8cb852c9d6e9c30a01993589a4deb6e25961944faed25"
+        }
+      },
+      "previews": []
+    },
+    {
+      "slug": "extra-sources",
+      "name": "extra sources",
+      "blurb": "search soundcloud, bandcamp and mixcloud from tide. no sign-in.",
+      "about": "three more places to find music, next to youtube music. search them on their own or all at once (federated search in the source panel), and their songs go in the same queue as everything else.\n\nno accounts: it's the public catalogue of each. soundcloud and bandcamp come switched on, mixcloud's dj mixes and radio shows are a switch away in the source panel.",
+      "version": "1.0.0",
+      "api": 1,
+      "size": 7180,
+      "sha256": "3f64f4903534d571b77d676abd28926c90da8601afe2db39d18e7603851a2875",
+      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/extra-sources-1.0.0/extra-sources.zip",
+      "uses": [
+        "network"
+      ],
+      "needs": [],
+      "author": "captience",
+      "official": true,
+      "category": "sources",
+      "repo": "https://github.com/captiencelovesarch/tide-plugins/tree/main/extra-sources",
+      "added": "2026-10-22",
+      "vendors": [],
+      "min_tide": "3.0.0",
+      "icon": {
+        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/extra-sources-1.0.0/extra-sources-icon.svg",
+        "sha256": "469077f57030d6be78485acb285f486590a8d43b28da48393278a6bcf2be7e05"
+      },
+      "banner": {
+        "grid": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/extra-sources-1.0.0/extra-sources-grid.webp",
+          "sha256": "e8fdb9d58e7665bf9233cc48062df1cf8afc7a023ff1cd7491b0aa0706fe6982"
+        },
+        "full": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/extra-sources-1.0.0/extra-sources-full.webp",
+          "sha256": "4f143d00ddbd717e3005ba1c2e995e732fe40c0f2d7a83acd279e522649c1076"
+        },
+        "motion": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/extra-sources-1.0.0/extra-sources-motion.webp",
+          "sha256": "72d947aa9098fe662b29a355c08b28c0b882dc5efbf13d108c0c17e6dc12f51b"
+        }
+      },
+      "previews": []
+    },
+    {
+      "slug": "instrumental",
+      "name": "instrumental finder",
+      "blurb": "mute the vocals: tide finds the song's instrumental and you sing over it.",
+      "about": "a [mute lyrics] toggle in the lyrics view. tide looks through every source you have on for the song's instrumental or karaoke cut, swaps it in where you are, and swaps the vocal back when you toggle it off.\n\nit matches on title, artist and length, and skips karaoke channels that aren't the artist, so a cover in a different key doesn't sneak in.",
+      "version": "1.0.0",
+      "api": 1,
+      "size": 6074,
+      "sha256": "97dc846bba73ca2c5b6299f7be75303314bb135ebbf92763439e79dfdea90668",
+      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/instrumental-1.0.0/instrumental.zip",
+      "uses": [
+        "playback",
+        "lyrics",
+        "network"
+      ],
+      "needs": [],
+      "author": "captience",
+      "official": true,
+      "category": "lyrics",
+      "repo": "https://github.com/captiencelovesarch/tide-plugins/tree/main/instrumental",
+      "added": "2026-10-22",
+      "vendors": [],
+      "min_tide": "3.0.0",
+      "icon": {
+        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/instrumental-1.0.0/instrumental-icon.svg",
+        "sha256": "9935573c3f9083c519617d6e8754cfe96216fddd8bf1fa5ec6a06df349b05e43"
+      },
+      "banner": {
+        "grid": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/instrumental-1.0.0/instrumental-grid.webp",
+          "sha256": "84f68d183169b7dc12f4c7afa5160755ffbdf9f6ca6e4ed4644444c3139d539b"
+        },
+        "full": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/instrumental-1.0.0/instrumental-full.webp",
+          "sha256": "a44d9f892f512e79d71cf4bf05a7c57fec1528a401affbbf0bf7583fa6b7c843"
+        }
+      },
+      "previews": []
+    },
     {
       "slug": "kde",
       "name": "kde desktop",
@@ -100,6 +230,140 @@
       "previews": []
     },
     {
+      "slug": "local-files",
+      "name": "local files",
+      "blurb": "play the music on your computer, in the same queue as youtube music.",
+      "about": "mp3, flac, ogg, opus, m4a and the rest, from your music folder (or one you pick with the gear in the source panel). search it, browse it by album, and queue it next to youtube music.\n\ncovers come from a cover.jpg in the folder, or the art inside the files.",
+      "version": "1.0.0",
+      "api": 1,
+      "size": 8090,
+      "sha256": "7f1921e0d46b30325fd5faf4b4a9147f4607101993a0236e3c1f3156dd5a1062",
+      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/local-files-1.0.0/local-files.zip",
+      "uses": [
+        "files"
+      ],
+      "needs": [
+        {
+          "what": "python-watchdog, to pick up new files while tide runs (optional)",
+          "check": "module:watchdog",
+          "how": "sudo pacman -S python-watchdog"
+        }
+      ],
+      "author": "captience",
+      "official": true,
+      "category": "sources",
+      "repo": "https://github.com/captiencelovesarch/tide-plugins/tree/main/local-files",
+      "added": "2026-10-22",
+      "vendors": [],
+      "min_tide": "3.0.0",
+      "icon": {
+        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/local-files-1.0.0/local-files-icon.svg",
+        "sha256": "ecae56bfd89370ed63d7bb817823f68199edae5862406f51c39e18756d9ab86c"
+      },
+      "banner": {
+        "grid": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/local-files-1.0.0/local-files-grid.webp",
+          "sha256": "3193345f9b26efe23de79f5392479f7db7f89bb875e4b1a93cebc0c25bed0770"
+        },
+        "full": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/local-files-1.0.0/local-files-full.webp",
+          "sha256": "7a5c407731ac596dc8f7e66c40d10e2a3483030dc7f47edd11703f7e3769f045"
+        }
+      },
+      "previews": []
+    },
+    {
+      "slug": "lyric-timing",
+      "name": "precise lyric timing",
+      "blurb": "listens to the song and puts every word where it's sung.",
+      "about": "a small speech model (wav2vec2, about 95 mb, downloaded from this page) listens to the song on your computer and moves each word to where it's sung. lyrics whose timing belongs to a different cut of the song get pulled back onto the audio.\n\nthe model is english-trained and hears the singer through the band, so with a loud mix or another language the lyrics keep their own timing. nothing leaves your computer.\n\nkaraoke mode and the word-by-word sweep in the lyrics tab come with it too.",
+      "version": "1.0.0",
+      "api": 1,
+      "size": 10958,
+      "sha256": "3eefee8a2c1acb571898de860038bb28b05cfd19ecba91fd75e08cff601151a0",
+      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lyric-timing-1.0.0/lyric-timing.zip",
+      "uses": [
+        "lyrics",
+        "network",
+        "files"
+      ],
+      "needs": [
+        {
+          "what": "python-onnxruntime-cpu",
+          "check": "module:onnxruntime",
+          "how": "sudo pacman -S python-onnxruntime-cpu"
+        }
+      ],
+      "author": "captience",
+      "official": true,
+      "category": "lyrics",
+      "repo": "https://github.com/captiencelovesarch/tide-plugins/tree/main/lyric-timing",
+      "added": "2026-10-22",
+      "vendors": [],
+      "min_tide": "3.0.0",
+      "icon": {
+        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lyric-timing-1.0.0/lyric-timing-icon.svg",
+        "sha256": "c2b936f4883c6e1c8bd13809fdebc06abadf8c65abbe99fcbfb90ff017ee324e"
+      },
+      "banner": {
+        "grid": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lyric-timing-1.0.0/lyric-timing-grid.webp",
+          "sha256": "fcd47454d1f005f083b18f6106348fdee00859fa78079ca56538d7261b0de1fe"
+        },
+        "full": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lyric-timing-1.0.0/lyric-timing-full.webp",
+          "sha256": "6849e5812a240d9be1f155331f98ebf0e2671f075815462ae8394a909da22553"
+        },
+        "motion": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lyric-timing-1.0.0/lyric-timing-motion.webp",
+          "sha256": "bd58a32054650d5c4b7b2a4cbee960be010d0808d9d3bb83be7fb2e71d8acb09"
+        }
+      },
+      "previews": []
+    },
+    {
+      "slug": "powertools",
+      "name": "tide powertools",
+      "blurb": "the theme, glyph and keymap editors, for when you want to change everything.",
+      "about": "three editors in tide's settings. the theme editor changes the active theme's colours, type and corners while you watch, and saves the result as a theme of your own. the glyph editor swaps any control's glyph for one to three characters of yours. the keymap editor rebinds every shortcut.\n\nwhat you make keeps working without the plugin: uninstall it and your themes, glyphs and keys stay.",
+      "version": "1.0.0",
+      "api": 1,
+      "size": 15040,
+      "sha256": "6743fc646545b818c0c516636ed2fd671cbd65ff1b16f5184304db659b0b82bc",
+      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/powertools-1.0.0/powertools.zip",
+      "uses": [
+        "ui",
+        "files"
+      ],
+      "needs": [],
+      "author": "captience",
+      "official": true,
+      "category": "tools",
+      "repo": "https://github.com/captiencelovesarch/tide-plugins/tree/main/powertools",
+      "added": "2026-10-22",
+      "vendors": [],
+      "min_tide": "3.0.0",
+      "icon": {
+        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/powertools-1.0.0/powertools-icon.svg",
+        "sha256": "0864d743ac0ac4be84a32e89d3c696c51e3611ed1779285074bed8b22122cdda"
+      },
+      "banner": {
+        "grid": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/powertools-1.0.0/powertools-grid.webp",
+          "sha256": "dcd885694e7c773c27c99f30754c94f05293444ac95f7ac5b47f38ea4e8ffbfa"
+        },
+        "full": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/powertools-1.0.0/powertools-full.webp",
+          "sha256": "dfe768c3c2e46e158d6ea152014bf35002098912e038ba6a8df64656a96f3171"
+        },
+        "motion": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/powertools-1.0.0/powertools-motion.webp",
+          "sha256": "0ab265e7b403ce02dfa1c90fee84e5bd7f62d96de00dd548d43b86047c7c1a74"
+        }
+      },
+      "previews": []
+    },
+    {
       "slug": "steamvr",
       "name": "steamvr",
       "blurb": "check the watch on your wrist and tide opens in vr. look away and it goes.",
@@ -151,6 +415,52 @@
         }
       },
       "previews": []
+    },
+    {
+      "slug": "vis-tiles",
+      "name": "more visualizer tiles",
+      "blurb": "four more tiles for the visualizer: the loudness river, a spectrogram, a halo round the cover and a beat tapper.",
+      "about": "the river is the song's loudness flowing past a playhead, so you see the drop coming. the spectrogram is the last few seconds of sound as a heat map. the halo puts the cover in the middle with the spectrum round it. the tapper is a little rhythm game: tap on the beat and it tells you how many ms off you were.\n\npick one in any slot's menu in the visualizer (hover a tile, [edit]). their knobs are in that menu and on this page.",
+      "version": "1.0.0",
+      "api": 1,
+      "size": 11738,
+      "sha256": "5c93651b07b0ad4f6f7c5baadd6ff1b93d349f19a08da3a93f62a98af24e00e5",
+      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/vis-tiles-1.0.0/vis-tiles.zip",
+      "uses": [
+        "ui"
+      ],
+      "needs": [],
+      "author": "captience",
+      "official": true,
+      "category": "visuals",
+      "repo": "https://github.com/captiencelovesarch/tide-plugins/tree/main/vis-tiles",
+      "added": "2026-10-22",
+      "vendors": [],
+      "min_tide": "3.0.0",
+      "icon": {
+        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/vis-tiles-1.0.0/vis-tiles-icon.svg",
+        "sha256": "af59777e761439b9e449e5ddb36c2eef7955da125e78139edd8c51c42188e72c"
+      },
+      "banner": {
+        "grid": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/vis-tiles-1.0.0/vis-tiles-grid.webp",
+          "sha256": "026e5d0a71bf7c02b15e842a52f058d66884a4047800d595c771daaecbf5f783"
+        },
+        "full": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/vis-tiles-1.0.0/vis-tiles-full.webp",
+          "sha256": "e23df1153fef0c0e123392c2664fa057322e040f8fc746710b2786001508a337"
+        },
+        "motion": {
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/vis-tiles-1.0.0/vis-tiles-motion.webp",
+          "sha256": "7d9376291dd784ba70841fc4500196f39e8e44c3644b50486d2351b54efad8e2"
+        }
+      },
+      "previews": []
     }
-  ]
+  ],
+  "featured": {
+    "slug": "steamvr",
+    "note": "the reason the store exists. put your music on your wrist in vr.",
+    "until": "2026-10-29"
+  }
 }

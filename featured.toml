@@ -2,7 +2,7 @@
 # and run `tools/publish.py --index-only`. past `until`, tide shows the
 # newest plugin instead.
 
-# [featured]
-# slug  = "steamvr"
-# note  = ""
-# until = "2026-11-08"
+[featured]
+slug  = "steamvr"
+note  = "the reason the store exists. put your music on your wrist in vr."
+until = "2026-10-29"
