@@ -19,6 +19,7 @@ pypresence raises, we log and move on — the app keeps working.
 from __future__ import annotations
 
 import os
+import re
 import time
 from bisect import bisect_right
 from collections import deque
@@ -90,6 +91,32 @@ TRACK_SETTLE_S = 1.0
 # Discord's state field limit.
 STATE_MAX = 128
 _LYRIC_JOIN = " / "
+
+# The "censor explicit words" option: the strong swears and slurs, small on
+# purpose. Whole words only, with the usual endings (fucking, shitty,
+# bitches); a hit keeps its first letter and the rest becomes asterisks.
+CENSOR_WORDS = (
+    "fuck", "motherfuck", "shit", "bullshit", "bitch", "cunt", "asshole",
+    "bastard", "dick", "dickhead", "cock", "pussy", "whore", "slut",
+    "nigger", "nigga", "faggot", "fag", "retard", "tranny",
+)
+_CENSOR_ENDINGS = ("s", "es", "ies", "ed", "er", "ers", "ing", "in['\u2019]?",
+                   "y", "ty", "ted", "ter", "ters", "ting", "tin", "z")
+_CENSOR_RE = re.compile(
+    r"(?<!\w)(?:" + "|".join(sorted(CENSOR_WORDS, key=len, reverse=True)) + r")"
+    r"(?:" + "|".join(_CENSOR_ENDINGS) + r")?(?!\w)",
+    re.IGNORECASE,
+)
+
+
+def censor(text: str) -> str:
+    """``text`` with the words in CENSOR_WORDS masked: first letter kept
+    (in its own case), every other letter or digit an asterisk. Same length
+    as the input, so the state field's budget is unaffected."""
+    return _CENSOR_RE.sub(
+        lambda m: m.group()[0] + re.sub(r"\w", "*", m.group()[1:]), text)
+
+
 # Activity fields newer Discord clients understand; dropped if refused.
 _NEWER_FIELDS = ("status_display_type", "details_url", "state_url",
                  "large_url", "buttons")
@@ -153,6 +180,8 @@ class DiscordPresence(QObject):
         # Privacy: hide the presence entirely, or just for local files.
         self._hidden: bool = False
         self._hide_local: bool = False
+        # Mask swear words in the lyric line (see censor()).
+        self._censor: bool = True
         # Whether Discord currently shows something of ours (so a hidden
         # presence clears once instead of on every event).
         self._showing: bool = False
@@ -217,6 +246,7 @@ class DiscordPresence(QObject):
         links: bool = True,
         hidden: bool = False,
         hide_local: bool = False,
+        censor: bool = True,
     ) -> None:
         """Presence customization knobs (Settings → discord). Applying them
         re-pushes the current activity so the profile updates without
@@ -232,15 +262,16 @@ class DiscordPresence(QObject):
             bool(links),
             bool(hidden),
             bool(hide_local),
+            bool(censor),
         )
         old = (self._details_template, self._state_template, self._show_paused,
                self._show_progress, self._activity_type, self._status_display,
-               self._links, self._hidden, self._hide_local)
+               self._links, self._hidden, self._hide_local, self._censor)
         if new == old:
             return
         (self._details_template, self._state_template, self._show_paused,
          self._show_progress, self._activity_type, self._status_display,
-         self._links, self._hidden, self._hide_local) = new
+         self._links, self._hidden, self._hide_local, self._censor) = new
         if self._connected and (self._last_activity is not None or self._showing):
             self._push_current()
 
@@ -469,6 +500,12 @@ class DiscordPresence(QObject):
             return None
         return i
 
+    def _lyric_text(self, i: int) -> str:
+        """Line ``i`` as it goes on the profile: trimmed, and masked when
+        the censor option is on."""
+        line = self._lyric_lines[i].strip()
+        return censor(line) if self._censor else line
+
     def _compose_lyric(self, a: _Activity) -> tuple[str, tuple[int, int] | None]:
         """The lyric text for a write going out now: the line about to be
         sung, plus every following line that starts before the next lyric
@@ -489,11 +526,11 @@ class DiscordPresence(QObject):
         # as slack (a line it would show 0.4 s ahead is fine to wait for).
         limit = (ahead + min(LYRIC_REACH_S, max(0.0, nxt - now) * a.speed)
                  - LYRIC_LEAD_S / 2)
-        parts = [self._lyric_lines[i].strip()]
+        parts = [self._lyric_text(i)]
         j = i
         room = STATE_MAX - 2                       # "♪ "
         while j + 1 < len(self._lyric_times) and self._lyric_times[j + 1] < limit:
-            line = self._lyric_lines[j + 1].strip()
+            line = self._lyric_text(j + 1)
             if not line:
                 break
             if len(_LYRIC_JOIN.join(parts + [line])) > room:

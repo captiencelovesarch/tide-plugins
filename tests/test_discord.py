@@ -11,6 +11,7 @@ and the fallback when a client refuses the newer fields.
 Moved here from tide's tests/test_discord_presence.py with the plugin
 (tide 3.0). Run:  PYTHONPATH=~/tide/src python -m pytest tests/test_discord.py
 """
+import dataclasses
 import importlib
 import sys
 import types
@@ -305,6 +306,53 @@ class PrivacyTests(_Case):
         self.p._on_state_changed(PlayState.PLAYING)
         self.listen(3)
         self.assertEqual(self.client.writes[-1][1], "update")
+
+class CensorTests(_Case):
+    def test_masks_whole_words_keeping_the_first_letter(self) -> None:
+        c = discord_rpc.censor
+        self.assertEqual(c("what the fuck"), "what the f***")
+        self.assertEqual(c("Shit happens"), "S*** happens")
+        self.assertEqual(c("SHIT"), "S***")
+        self.assertEqual(c("fucking shitty bitches"), "f****** s***** b******")
+        self.assertEqual(c("fuckin' right, fuckin\u2019 left"), "f*****' right, f*****\u2019 left")
+        self.assertEqual(c("clean line"), "clean line")
+
+    def test_leaves_words_that_only_contain_one(self) -> None:
+        c = discord_rpc.censor
+        for text in ("Scunthorpe", "Dickens and Hancock", "a classic assassin",
+                     "shiitake", "peacock feathers"):
+            self.assertEqual(c(text), text)
+
+    def test_length_is_unchanged(self) -> None:
+        text = "motherfucker, you bullshit bitch"
+        self.assertEqual(len(discord_rpc.censor(text)), len(text))
+
+    def _lyric_states(self, **opts) -> list[str]:
+        self.p.set_options(**opts)
+        self.play()
+        self.p.set_lyric_timeline(([21.0, 21.5, 40.0], ["oh shit", "damn fucking right", "clean"]))
+        self.listen(42)
+        return [s for s in self.client.states() if s.startswith("\u266a")]
+
+    def test_setting_on_masks_the_lyric_even_when_merged(self) -> None:
+        states = self._lyric_states(censor=True)
+        shown = " / ".join(s.removeprefix("\u266a ") for s in states)
+        self.assertIn("oh s***", shown)
+        self.assertIn("damn f****** right", shown)
+        self.assertNotIn("shit", shown)
+        self.assertNotIn("fuck", shown)
+
+    def test_setting_off_sends_the_lyric_as_sung(self) -> None:
+        states = self._lyric_states(censor=False)
+        shown = " / ".join(s.removeprefix("\u266a ") for s in states)
+        self.assertIn("oh shit", shown)
+        self.assertIn("damn fucking right", shown)
+
+    def test_song_title_is_not_censored(self) -> None:
+        self.p.set_options(censor=True)
+        self.play(dataclasses.replace(_track(), title="Shit Show"))
+        self.assertIn("Shit Show", self.client.writes[-1][2].get("details", ""))
+
 
 
 if __name__ == "__main__":

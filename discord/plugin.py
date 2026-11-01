@@ -8,7 +8,8 @@ from PySide6.QtCore import QObject, Signal
 from .presence import PYPRESENCE_AVAILABLE, DiscordPresence
 
 OPTIONS = ("details_template", "state_template", "show_paused", "show_progress",
-           "activity_type", "status_display", "links", "hidden", "hide_local")
+           "activity_type", "status_display", "links", "hidden", "hide_local",
+           "censor")
 
 
 class Feed(QObject):
