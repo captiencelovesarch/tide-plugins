@@ -1,17 +1,17 @@
 {
   "format": 1,
-  "generated": "2026-10-23T03:26:22Z",
+  "generated": "2026-11-01T03:47:02Z",
   "plugins": [
     {
       "slug": "discord",
       "name": "discord presence",
       "blurb": "what you're listening to, on your discord profile.",
-      "about": "the song, the artist and a progress bar on your profile, linked to the track on youtube music. turn on the live lyric and the line being sung shows instead of the album.\n\nyou make your own discord app for it (thirty seconds at the developer portal), so the name and picture people see are yours. the tray menu has a \"hide from discord\" switch for when you'd rather not.",
-      "version": "1.0.0",
+      "about": "the song, the artist and a progress bar on your profile, linked to the track on youtube music. turn on the live lyric and the line being sung shows instead of the album, with swear words starred unless you switch that off.\n\nyou make your own discord app for it (thirty seconds at the developer portal), so the name and picture people see are yours. the tray menu has a \"hide from discord\" switch for when you'd rather not.",
+      "version": "1.1.0",
       "api": 1,
-      "size": 27754,
-      "sha256": "e2c43c48f2bfe9641776bd197658b53da4fb5faa85897b8d6099d5f9bba5d1c8",
-      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.0.0/discord.zip",
+      "size": 28519,
+      "sha256": "fd4355ec1ad6f910415ad0c2ecf1643f254554fecd288e7b1794f5570a3db876",
+      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.1.0/discord.zip",
       "uses": [
         "playback",
         "lyrics",
@@ -33,20 +33,20 @@
       ],
       "min_tide": "3.0.0",
       "icon": {
-        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.0.0/discord-icon.svg",
+        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.1.0/discord-icon.svg",
         "sha256": "c82e0dc4686f20e135c0eea9f53c5a4738e8357b9a7a8eb05b59f387f6203757"
       },
       "banner": {
         "grid": {
-          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.0.0/discord-grid.webp",
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.1.0/discord-grid.webp",
           "sha256": "0390a813829268883c8976153911acc9570e740c35440995d2df5a9a7b2a131d"
         },
         "full": {
-          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.0.0/discord-full.webp",
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.1.0/discord-full.webp",
           "sha256": "653181859ef1d4035a6632cb9fca405703708c9e376c86613791e3968771fc77"
         },
         "motion": {
-          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.0.0/discord-motion.webp",
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.1.0/discord-motion.webp",
           "sha256": "a9d3503513e29d6cbbd8cb852c9d6e9c30a01993589a4deb6e25961944faed25"
         }
       },
