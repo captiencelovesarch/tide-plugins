@@ -1,17 +1,17 @@
 {
   "format": 1,
-  "generated": "2026-11-01T03:47:02Z",
+  "generated": "2026-11-18T04:05:42Z",
   "plugins": [
     {
       "slug": "discord",
       "name": "discord presence",
       "blurb": "what you're listening to, on your discord profile.",
       "about": "the song, the artist and a progress bar on your profile, linked to the track on youtube music. turn on the live lyric and the line being sung shows instead of the album, with swear words starred unless you switch that off.\n\nyou make your own discord app for it (thirty seconds at the developer portal), so the name and picture people see are yours. the tray menu has a \"hide from discord\" switch for when you'd rather not.",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "api": 1,
-      "size": 28519,
-      "sha256": "fd4355ec1ad6f910415ad0c2ecf1643f254554fecd288e7b1794f5570a3db876",
-      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.1.0/discord.zip",
+      "size": 29835,
+      "sha256": "398bda10f4ec799d17e4ea3cee7777b0abe67f88a231dcd35530bb84875d66f7",
+      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.2.0/discord.zip",
       "uses": [
         "playback",
         "lyrics",
@@ -33,20 +33,20 @@
       ],
       "min_tide": "3.0.0",
       "icon": {
-        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.1.0/discord-icon.svg",
+        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.2.0/discord-icon.svg",
         "sha256": "c82e0dc4686f20e135c0eea9f53c5a4738e8357b9a7a8eb05b59f387f6203757"
       },
       "banner": {
         "grid": {
-          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.1.0/discord-grid.webp",
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.2.0/discord-grid.webp",
           "sha256": "0390a813829268883c8976153911acc9570e740c35440995d2df5a9a7b2a131d"
         },
         "full": {
-          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.1.0/discord-full.webp",
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.2.0/discord-full.webp",
           "sha256": "653181859ef1d4035a6632cb9fca405703708c9e376c86613791e3968771fc77"
         },
         "motion": {
-          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.1.0/discord-motion.webp",
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/discord-1.2.0/discord-motion.webp",
           "sha256": "a9d3503513e29d6cbbd8cb852c9d6e9c30a01993589a4deb6e25961944faed25"
         }
       },
@@ -186,11 +186,11 @@
       "name": "lights",
       "blurb": "your rgb lights pulse with the bass in the cover's colours.",
       "about": "pc rgb through openrgb (keyboards, mice, ram, the motherboard and what's plugged into it) and wifi strips through wled. on the kick or breathing, in the cover's colours or your theme's accent. never more than three flashes a second; a faster beat still shows, just softer.\n\nyour lights get their old colours back when tide lets go. tide can start openrgb's server for you, with no window.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "api": 1,
-      "size": 12247,
-      "sha256": "ce4ca623aae78d212bb6a7c706bb71386c9351f2356d65d2f016db87ee56eb15",
-      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lights-0.1.0/lights.zip",
+      "size": 15203,
+      "sha256": "0bafc04c4ca7d61d9616de541d9ccabad3620a1414f20c2e7d5c16163d82ec80",
+      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lights-0.2.0/lights.zip",
       "uses": [
         "playback",
         "network"
@@ -210,20 +210,20 @@
       "vendors": [],
       "min_tide": "3.0.0",
       "icon": {
-        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lights-0.1.0/lights-icon.svg",
+        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lights-0.2.0/lights-icon.svg",
         "sha256": "7219000e01ad5f6bef0a67d9fdd8e4dabb297acf1843142c84c00da543beb328"
       },
       "banner": {
         "grid": {
-          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lights-0.1.0/lights-grid.webp",
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lights-0.2.0/lights-grid.webp",
           "sha256": "4e41881406fd1d328023235fd3a36c849167824a38d35a861804a06a05a4cef3"
         },
         "full": {
-          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lights-0.1.0/lights-full.webp",
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lights-0.2.0/lights-full.webp",
           "sha256": "05fc4ed713a80c8719bb7aa8825ba9d3bbeb23ed0234a30c606495e50a4be2e8"
         },
         "motion": {
-          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lights-0.1.0/lights-motion.webp",
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/lights-0.2.0/lights-motion.webp",
           "sha256": "c41d053ad6b98c25e04046f7fabe15dab74073cfd5a7b73fa7baea2f4fd54f34"
         }
       },
@@ -367,12 +367,12 @@
       "slug": "steamvr",
       "name": "steamvr",
       "blurb": "check the watch on your wrist and tide opens in vr. look away and it goes.",
-      "about": "a watch on your wrist. turn it toward you and tide's panel opens in front of you: the song, the lyrics, the queue, search and your library. press it with your controller tip or point the laser at it. look away and it goes after a couple of seconds.\n\nvoice search runs on this computer (the whisper model, about 77 mb, is a button in the settings). a glow on the edge of your view can pulse with the music, never more than three flashes a second.",
-      "version": "0.3.0",
+      "about": "a watch on your wrist. turn it toward you and tide's panel opens in front of you: the song, the lyrics, the queue, search and your library. press it with your controller tip or point the laser at it. look away and it goes after a couple of seconds.\n\nvoice search runs on this computer (the whisper model, about 77 mb, is a button in the settings). the music can show in the headset too: rings across the floor on each kick, the cover low in a corner of your view, a glow along the bottom, or just the watch. never more than three flashes a second.",
+      "version": "0.4.0",
       "api": 1,
-      "size": 675883,
-      "sha256": "4bc4b69ab2e90258251df9daf20997d90cae5d7e049d7cc41134a1dea76d09ec",
-      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/steamvr-0.3.0/steamvr.zip",
+      "size": 683989,
+      "sha256": "60a20af71e018ed8d5067da2bb872b290c4b45ea2a3c39db801fbfcafcbe8bd9",
+      "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/steamvr-0.4.0/steamvr.zip",
       "uses": [
         "playback",
         "queue",
@@ -397,20 +397,20 @@
       ],
       "min_tide": "3.0.0",
       "icon": {
-        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/steamvr-0.3.0/steamvr-icon.svg",
+        "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/steamvr-0.4.0/steamvr-icon.svg",
         "sha256": "34ae3c54b9ad77f9c12e9b3d5491b79d3ec1470dac8c40bb1284ddaba118278b"
       },
       "banner": {
         "grid": {
-          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/steamvr-0.3.0/steamvr-grid.webp",
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/steamvr-0.4.0/steamvr-grid.webp",
           "sha256": "5b08733a5d7ad9f6b42ee9d398ae9bbb32e18fff7fc94f80e6650e2370a6bf7c"
         },
         "full": {
-          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/steamvr-0.3.0/steamvr-full.webp",
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/steamvr-0.4.0/steamvr-full.webp",
           "sha256": "db714a0ff10d30a01be922d2d180d6d8fc3afd84a34563eeb5f1213711c61417"
         },
         "motion": {
-          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/steamvr-0.3.0/steamvr-motion.webp",
+          "url": "https://github.com/captiencelovesarch/tide-plugins/releases/download/steamvr-0.4.0/steamvr-motion.webp",
           "sha256": "d77945eddeba81bad3a36be7468044a451cd9d7bbed43c85aa5160b771e16383"
         }
       },
