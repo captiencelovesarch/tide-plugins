@@ -85,6 +85,20 @@ LYRIC_LEAD_S = 0.8
 # the budget is tight, a line too far out waits for a later write instead
 # of showing up absurdly early.
 LYRIC_REACH_S = 12.0
+# A break between lines (an instrumental, a long wait for the next line)
+# shows the lyrics tab's three dots instead of the last line. Only when
+# the next line is still this far off once the dots' write can go out:
+# the dots cost a lyric write, and the next line needs one back by the
+# time it's due. The intro keeps artist · album, the one moment the
+# profile names the artist.
+BREAK_MIN_LEFT_S = LYRIC_REFILL_S + 0.5
+# The dots light up through the break like the lyrics tab's: one, two,
+# then all three. A lyric write goes out every LYRIC_REFILL_S at best and
+# the next line needs one on time, so a step only goes when it leaves
+# that write free, and the last step a break can afford is always the
+# full row: the dots are full when the line lands. A break with room for
+# only the one write shows the full row from the start.
+DOT_STAGES = ("● ○ ○", "● ● ○", "● ● ●")
 # A new track's write waits this long so it usually goes out together with
 # the "audio started" one (two writes per song start became one).
 TRACK_SETTLE_S = 1.0
@@ -192,6 +206,9 @@ class DiscordPresence(QObject):
         self._lyric_times: list[float] = []
         self._lyric_lines: list[str] = []
         self._lyric_shown: tuple[int, int] | None = None
+        # fn(song seconds) -> (begin, end) of the lyric break there, or
+        # None: ctx.lyrics.break_at, on tide newer than 3.2.0.
+        self._break_at = None
         # Last known playback position (seconds). Tracked from
         # ``position_changed`` so ``_on_state_changed(PLAYING)`` can anchor
         # ``started_at`` to actual audio progress on first-play or resume.
@@ -475,6 +492,59 @@ class DiscordPresence(QObject):
         else:
             self._lyric_tick()
 
+    def set_break_source(self, fn) -> None:
+        """``fn(seconds)`` gives the lyric break at that song time as
+        ``(begin, end)``, or None. Without one there are no dots."""
+        self._break_at = fn
+
+    def _break_ahead(self, ahead: float, a: "_Activity") -> tuple | None:
+        """The break to show dots for at song time ``ahead``, or None.
+        Dots already up stay until the next line; new ones need
+        BREAK_MIN_LEFT_S to go once their write can, and the intro never
+        gets them."""
+        fn = self._break_at
+        if fn is None or not self._lyric_times or ahead < self._lyric_times[0]:
+            return None
+        try:
+            span = fn(ahead)
+        except Exception:
+            return None
+        if not span:
+            return None
+        if a.lyric in DOT_STAGES:
+            return span
+        goes = max(time.monotonic(), self._lyric_slot())
+        if goes + BREAK_MIN_LEFT_S > self._line_due(span, ahead, a):
+            return None
+        return span
+
+    def _line_due(self, span: tuple, ahead: float, a: "_Activity") -> float:
+        """When (monotonic) the line after break ``span`` needs its write."""
+        return time.monotonic() + max(0.0, float(span[1]) - ahead) / max(0.01, a.speed)
+
+    def _dots_for(self, span: tuple, ahead: float, a: "_Activity") -> str:
+        """The dots for a write going out now: the full row if no other
+        step fits before the line, else one or two lit by how far into
+        the break the song is."""
+        if self._lyric_slot(after_write=True) + LYRIC_REFILL_S > self._line_due(span, ahead, a):
+            return DOT_STAGES[-1]
+        begin, end = float(span[0]), float(span[1])
+        done = (ahead - begin) / max(0.01, end - begin)
+        return DOT_STAGES[min(1, max(0, int(done * 3)))]
+
+    def _dot_step(self, span: tuple, ahead: float, a: "_Activity") -> str | None:
+        """The dots' next stage, if one is due, a write can go out now, and
+        that write still leaves one for the next line in time."""
+        now = time.monotonic()
+        if self._lyric_slot() > now + 0.01:
+            return None
+        want = self._dots_for(span, ahead, a)
+        if want == a.lyric or DOT_STAGES.index(want) < DOT_STAGES.index(a.lyric):
+            return None
+        if self._lyric_slot(after_write=True) > self._line_due(span, ahead, a):
+            return None
+        return want
+
     def _lyric_tick(self) -> None:
         """Ask for a lyric write when the line about to be sung isn't on the
         profile yet, or a gap starts while a lyric still is. "About to" is
@@ -483,7 +553,13 @@ class DiscordPresence(QObject):
         if (a is None or a.paused or a.started_at is None or not self._connected
                 or not self._lyric_times or self._suppressed(a)):
             return
-        i = self._lyric_index(self._last_position + LYRIC_LEAD_S * a.speed)
+        ahead = self._last_position + LYRIC_LEAD_S * a.speed
+        span = self._break_ahead(ahead, a)
+        if span is not None:
+            if a.lyric not in DOT_STAGES or self._dot_step(span, ahead, a):
+                self._push_current(lyric=True)
+            return
+        i = self._lyric_index(ahead)
         if i is None:
             if a.lyric:
                 self._push_current(lyric=True)
@@ -492,6 +568,17 @@ class DiscordPresence(QObject):
         if shown is not None and shown[0] <= i <= shown[1]:
             return
         self._push_current(lyric=True)
+
+    def _break_before(self, start: float) -> bool:
+        """Whether a break leads up to the line starting at ``start``: a
+        line past an instrumental doesn't ride along early."""
+        fn = self._break_at
+        if fn is None:
+            return False
+        try:
+            return bool(fn(start - 0.05))
+        except Exception:
+            return False
 
     def _lyric_index(self, position: float) -> int | None:
         """The line sung at ``position`` (song time), None in a gap."""
@@ -516,6 +603,13 @@ class DiscordPresence(QObject):
         if not self._lyric_times or a.paused or a.started_at is None:
             return "", None
         ahead = self._last_position + LYRIC_LEAD_S * a.speed
+        span = self._break_ahead(ahead, a)
+        if span is not None:
+            if a.lyric in DOT_STAGES:
+                # a write that isn't this break's step (a pause, a skip)
+                # keeps the dots where they are unless a step fits
+                return self._dot_step(span, ahead, a) or a.lyric, None
+            return self._dots_for(span, ahead, a), None
         i = self._lyric_index(ahead)
         if i is None:
             return "", None
@@ -531,7 +625,7 @@ class DiscordPresence(QObject):
         room = STATE_MAX - 2                       # "♪ "
         while j + 1 < len(self._lyric_times) and self._lyric_times[j + 1] < limit:
             line = self._lyric_text(j + 1)
-            if not line:
+            if not line or self._break_before(self._lyric_times[j + 1]):
                 break
             if len(_LYRIC_JOIN.join(parts + [line])) > room:
                 break

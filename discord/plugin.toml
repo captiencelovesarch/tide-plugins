@@ -2,7 +2,7 @@
 slug        = "discord"
 name        = "discord presence"
 description = "what you're listening to on your discord profile, with the lyric line if you like."
-version     = "1.1.0"
+version     = "1.2.0"
 api         = 1
 entry       = "plugin:Discord"
 # pure python; the store's zip carries it in vendor/
@@ -23,7 +23,7 @@ key     = "lyrics"
 label   = "show the live lyric"
 kind    = "bool"
 default = false
-tooltip = "the current synced line replaces artist · album on your profile. fast lines show two at a time so none get skipped. everyone can see it, and lyrics can be explicit."
+tooltip = "the current synced line replaces artist · album on your profile. fast lines show two at a time so none get skipped, and a long instrumental break shows three dots. everyone can see it, and lyrics can be explicit."
 
 [[setting]]
 key     = "censor"

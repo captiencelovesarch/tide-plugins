@@ -39,6 +39,8 @@ class Discord:
         self.ctx = ctx
         self.feed = ctx.adopt(Feed(ctx))
         self.presence = ctx.adopt(DiscordPresence(self.feed, ctx.theme.case, ctx.log))
+        # the lyric breaks, for the dots (tide newer than 3.2.0 has them)
+        self.presence.set_break_source(getattr(ctx.lyrics, "break_at", None))
         self.presence.start_wire()
         self.presence.connection_changed.connect(lambda _on: self._status())
         ctx.lyrics.changed.connect(self._on_lyrics)

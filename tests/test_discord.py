@@ -191,6 +191,85 @@ class LyricTests(_Case):
             self.assertLessEqual(len(state), discord_rpc.STATE_MAX)
 
 
+def _breaks(*spans):
+    """A stand-in for ctx.lyrics.break_at over fixed (begin, end) spans."""
+    def at(t: float):
+        return next(((b, e) for b, e in spans if b <= t < e), None)
+    return at
+
+
+class BreakTests(_Case):
+    """The lyrics tab's three dots for a break between lines, lighting up
+    as the next line gets close (2026-11-09)."""
+
+    STAGES = ["♪ " + d for d in discord_rpc.DOT_STAGES]
+
+    def _break(self, end: float) -> list[str]:
+        """a line at 21, a break from 23 to ``end``, the next line at
+        ``end``: the lyric states the profile got, in order."""
+        self.play()
+        self.p.set_break_source(_breaks((0.0, 21.0), (23.0, end)))
+        self.p.set_lyric_timeline(([21.0, end], ["one", "two"]))
+        self.listen(end + 1.0)
+        self.assert_budget()
+        when = [t for t, _k, kw in self.client.writes if kw.get("state") == "♪ two"][0]
+        self.assertLess(when - 1000.0, end, "the line after the break came late")
+        return [s for s in self.client.states() if s.startswith("♪")]
+
+    def test_a_long_break_fills_one_dot_at_a_time(self) -> None:
+        self.assertEqual(self._break(55.0), ["♪ one", *self.STAGES, "♪ two"])
+
+    def test_a_medium_break_goes_from_one_to_all_three(self) -> None:
+        self.assertEqual(self._break(38.0),
+                         ["♪ one", self.STAGES[0], self.STAGES[2], "♪ two"])
+
+    def test_a_break_with_room_for_one_write_shows_the_full_row(self) -> None:
+        self.assertEqual(self._break(33.0), ["♪ one", self.STAGES[2], "♪ two"])
+
+    def test_a_break_too_short_for_its_write_keeps_the_line(self) -> None:
+        # right after a line the next write is 5 s off; a 7 s break would
+        # spend it on dots and make the line after late, so nothing goes
+        self.assertEqual(self._break(30.0), ["♪ one", "♪ two"])
+
+    def test_a_short_break_is_not_worth_a_write(self) -> None:
+        self.play()
+        self.p.set_break_source(_breaks((23.0, 27.0)))
+        self.p.set_lyric_timeline(([21.0, 27.0], ["one", "two"]))
+        self.listen(28)
+        self.assertFalse(set(self.STAGES) & set(self.client.states()))
+
+    def test_the_intro_keeps_the_artist(self) -> None:
+        self.play()
+        self.p.set_break_source(_breaks((0.0, 21.0)))
+        self.p.set_lyric_timeline(([21.0], ["one"]))
+        self.listen(15)
+        self.assertFalse(set(self.STAGES) & set(self.client.states()))
+        self.assertEqual(self.client.states()[-1].lower(), "radiohead · ok computer")
+
+    def test_a_pause_in_a_break_doesnt_skip_ahead(self) -> None:
+        # a write that isn't the dots' own (pause, then play) keeps them
+        self.play()
+        self.p.set_break_source(_breaks((0.0, 21.0), (23.0, 55.0)))
+        self.p.set_lyric_timeline(([21.0, 55.0], ["one", "two"]))
+        self.listen(25)
+        self.p._on_state_changed(PlayState.PAUSED)
+        self.listen(0.5)
+        self.p._on_state_changed(PlayState.PLAYING)
+        self.listen(31)
+        lyric = [s for s in self.client.states() if s.startswith("♪")]
+        stages = [s for s in lyric if s in self.STAGES]
+        self.assertEqual(stages, sorted(stages, key=self.STAGES.index))
+        self.assertEqual(lyric[-1], "♪ two")
+        self.assert_budget()
+
+    def test_no_break_source_no_dots(self) -> None:
+        # tide 3.2.0 and older: the plugin works as it did
+        self.play()
+        self.p.set_lyric_timeline(([21.0, 40.0], ["one", "two"]))
+        self.listen(30)
+        self.assertEqual(self.client.states()[-1], "♪ one")
+
+
 class BudgetTests(_Case):
     def test_pause_still_lands_while_lyrics_are_dense(self) -> None:
         self.play()

@@ -294,6 +294,8 @@ nothing is fetched until a plugin subscribes. tide shares one lyrics tracker bet
 | `subscribe()`, `unsubscribe()` | tide unsubscribes you when you stop |
 | `changed` | signal(`(times, lines)` or `None`), the whole timed sheet for a new song |
 | `line_changed` | signal(the line being sung, or `None`) |
+| `break_changed` | signal(`(begin, end)` in song seconds, or `None`). a break is what the lyrics tab draws three dots over: the intro, an instrumental, a long wait for the next line. newer than tide 3.2.0 |
+| `break_at(position)` | `(begin, end)` of the break at `position` seconds, or `None`. for plugins that look ahead. newer than tide 3.2.0 |
 | `sheet()` | the current `(times, lines)`, or `None` |
 | `lines_around(position)` | `(before, now, next)` at `position` seconds. all `None` without timed lyrics |
 | `add_aligner(fn)` | precise word timing. `fn(sheet, stream, should_stop, say)` gets tide's word sheet (a list of `WordLine`) and the `StreamRef` playing, and returns a better sheet or `None`. it runs off the gui thread, after the lyrics' own word timing. precise lyric timing uses it |
