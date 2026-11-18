@@ -3,9 +3,12 @@ device or a dropped wifi packet never holds up tide.
 
 Each frame takes the highest pulse since the last one (like tide's
 backdrop), shapes it with tide.plugin_api's flash cap and envelope, and
-paints every device: the cover's two colours as a slow-moving gradient
-along its leds, at the beat's brightness. A device that fails is retried
-every few seconds; the others carry on.
+paints every device: the cover's two colours as a slow-moving wash laid
+out by where each led sits (layout.py), at the beat's brightness. A kick
+lands in the middle of each device and rolls outward: every led plays
+the beat back a little later and a little softer the further out it
+is. A device that fails is retried every few seconds; the others carry
+on.
 """
 from __future__ import annotations
 
@@ -13,14 +16,24 @@ import colorsys
 import math
 import threading
 import time
+from collections import deque
 from typing import Callable
 
 from tide.plugin_api import Envelope, FlashLimiter, STRENGTH
+
+from . import layout
 
 FPS = 60
 RETRY_S = 5.0
 DRIFT_S = 24.0             # one trip of the gradient along the leds
 REST = 0.18                # brightness while paused, with "glow dimly"
+# a kick takes this long to roll from the middle of a device to its far
+# edge, and has this much less left when it gets there. the beat's own
+# release is 0.09 to 0.26 s, so the middle is already falling while the
+# edge rises: it reads as a ring going out, not a blur.
+TRAVEL_S = 0.28
+FADE = 0.35
+_HISTORY = int(TRAVEL_S * FPS) + 2
 
 
 def brightness(mode: str, pulse: float) -> float:
@@ -62,15 +75,55 @@ def _mix_hue(a: tuple, b: tuple, t: float) -> tuple[float, float, float]:
 def gradient(n: int, colors: tuple, level: float, phase: float) -> list[tuple[int, int, int]]:
     """``n`` leds from colour a to b and back, shifted by ``phase`` (0..1),
     at ``level`` (0..1)."""
+    places = [(i / max(1, n), 0.0) for i in range(n)]
+    return paint(places, colors, lambda _reach: level, level, phase)
+
+
+def paint(places: list, colors: tuple, level_at: Callable[[float], float],
+          base: float, phase: float) -> list[tuple[int, int, int]]:
+    """one device's frame. ``places``: (along, reach) per led (layout.py).
+    the wash goes from colour a to b and back along ``along``, shifted by
+    ``phase``. ``level_at(reach)`` is the beat as far out as ``reach``,
+    and what it lifts above ``base`` (the resting glow) fades with reach."""
     a, b = colors
-    level = max(0.0, min(1.0, level))
     out = []
-    for i in range(n):
-        x = (i / max(1, n) + phase) % 1.0
+    for along, reach in places:
+        level = level_at(reach)
+        if level > base:
+            level = base + (level - base) * (1.0 - FADE * reach)
+        level = max(0.0, min(1.0, level))
+        x = (along + phase) % 1.0
         t = 0.5 - 0.5 * math.cos(2 * math.pi * x)
         r, g, bl = _mix_hue(a, b, t)
         out.append((int(255 * level * r), int(255 * level * g), int(255 * level * bl)))
     return out
+
+
+class Ripple:
+    """the last TRAVEL_S of the beat, one level a frame, so a led
+    ``reach`` out hears it ``reach * TRAVEL_S`` late. a led at the middle
+    gets exactly what the old show sent every led, flash cap and all, and
+    one further out gets the same, later: never more flashes."""
+
+    def __init__(self) -> None:
+        self._levels: deque[float] = deque(maxlen=_HISTORY)
+
+    def push(self, level: float) -> None:
+        self._levels.append(float(level))
+
+    def at(self, reach: float) -> float:
+        if not self._levels:
+            return 0.0
+        back = min(len(self._levels) - 1, round(reach * TRAVEL_S * FPS))
+        return self._levels[-1 - back]
+
+
+def _places(out, k: int, n: int) -> list:
+    """device ``k``'s led places, or a plain strip if it has none (yet)."""
+    places = getattr(out, "places", None) or []
+    if k < len(places) and len(places[k]) == n:
+        return places[k]
+    return layout.strip(n)
 
 
 class Show(threading.Thread):
@@ -87,6 +140,7 @@ class Show(threading.Thread):
         self.mode = "kick"
         self.strength = "normal"
         self.paused = "dim"
+        self.spread = "ripple"
         self.sweep_until = 0.0
         self._live: dict[int, bool] = {}
         self._retry_at: dict[int, float] = {}
@@ -116,7 +170,7 @@ class Show(threading.Thread):
     # ---- the thread ----
 
     def run(self) -> None:
-        flash, env = FlashLimiter(), Envelope()
+        flash, env, ripple = FlashLimiter(), Envelope(), Ripple()
         frame = 1.0 / FPS
         next_t = time.monotonic()
         try:
@@ -127,21 +181,29 @@ class Show(threading.Thread):
                     self.pulse_peak = 0.0
                     playing, colors = self.playing, self.colors
                     mode, strength, paused = self.mode, self.strength, self.paused
+                    spread = self.spread
                     sweep = now < self.sweep_until
+                gain = STRENGTH.get(strength, 0.7)
                 if sweep:
-                    level = 1.0
+                    level = base = 1.0
                     phase = (now * 2.0) % 1.0
                 elif playing:
                     target = brightness(mode, beat)
-                    level = env.update(now, flash.update(now, target))
-                    level *= STRENGTH.get(strength, 0.7)
+                    level = env.update(now, flash.update(now, target)) * gain
+                    base = brightness(mode, 0.0) * gain
                     phase = (now / DRIFT_S) % 1.0
                 else:
                     flash.update(now, 0.0)
                     env.update(now, 0.0)
-                    level = REST * STRENGTH.get(strength, 0.7) if paused == "dim" else 0.0
+                    level = base = REST * gain if paused == "dim" else 0.0
                     phase = (now / DRIFT_S) % 1.0
-                self._paint(now, colors, level, phase)
+                ripple.push(level)
+                if spread == "together" or sweep:
+                    def level_at(_reach: float, level=level) -> float:
+                        return level
+                else:
+                    level_at = ripple.at
+                self._paint(now, colors, level_at, base, phase)
                 next_t += frame
                 delay = next_t - time.monotonic()
                 if delay > 0:
@@ -181,7 +243,8 @@ class Show(threading.Thread):
             return
         self._report_live()
 
-    def _paint(self, now: float, colors: tuple, level: float, phase: float) -> None:
+    def _paint(self, now: float, colors: tuple, level_at: Callable[[float], float],
+               base: float, phase: float) -> None:
         for i, out in enumerate(self.outputs):
             with self._lock:
                 live = self._live.get(i, False)
@@ -198,7 +261,8 @@ class Show(threading.Thread):
                 maintain = getattr(out, "maintain", None)
                 if maintain is not None:
                     maintain()
-                out.send([gradient(n, colors, level, phase) for n in out.leds])
+                out.send([paint(_places(out, k, n), colors, level_at, base, phase)
+                          for k, n in enumerate(out.leds)])
             except (OSError, ValueError) as exc:
                 with self._lock:
                     self._live[i] = False

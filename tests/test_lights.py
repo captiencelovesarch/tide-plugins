@@ -366,6 +366,84 @@ class ShowTests(unittest.TestCase):
         self.assertAlmostEqual(show_mod.brightness("kick", 1.0), 1.0)
 
 
+layout = importlib.import_module("tide_plugins_test_lights.layout")
+
+
+class LayoutTests(unittest.TestCase):
+    """the show paints by where each led sits, not by its number
+    (2026-11-09: openrgb numbers an apex pro's keys a, b, c..., so the
+    colours landed on the keys in alphabet order)."""
+
+    def test_a_keyboard_washes_by_column_not_by_key_code(self):
+        # one row of four keys, numbered out of order like key codes
+        zone = layout.Zone(4, layout.MATRIX, (1, 4, (2, 0, 3, 1)))
+        places = layout.device([zone], 4)
+        along = {led: a for led, (a, _r) in enumerate(places)}
+        self.assertLess(along[2], along[0])     # led 2 is the leftmost key
+        self.assertLess(along[0], along[3])
+        self.assertLess(along[3], along[1])     # led 1 is the rightmost
+
+    def test_a_kick_starts_in_the_middle_of_a_keyboard(self):
+        cells = tuple(range(15))                # 5 wide, 3 tall
+        places = layout.device([layout.Zone(15, layout.MATRIX, (3, 5, cells))], 15)
+        reach = [r for _a, r in places]
+        self.assertEqual(reach[7], 0.0)         # the middle key
+        self.assertAlmostEqual(max(reach), 1.0)
+        self.assertEqual(reach.index(max(reach)), 0)   # a corner is furthest
+
+    def test_ram_sticks_are_steps_of_the_wash_lit_from_their_middle(self):
+        sticks = [layout.Zone(5, layout.LINEAR)] * 4
+        places = layout.device(sticks, 20)
+        firsts = [places[i * 5][0] for i in range(4)]
+        self.assertEqual(firsts, sorted(firsts))
+        self.assertEqual([round(r, 2) for _a, r in places[:5]], [0.8, 0.4, 0.0, 0.4, 0.8])
+
+    def test_empty_zones_and_single_leds(self):
+        places = layout.device([layout.Zone(1, layout.SINGLE), layout.Zone(0),
+                                layout.Zone(1, layout.SINGLE)], 2)
+        self.assertEqual([r for _a, r in places], [0.0, 0.0])
+        self.assertLess(places[0][0], places[1][0])
+
+    def test_zones_that_dont_add_up_fall_back_to_a_strip(self):
+        self.assertEqual(layout.device([layout.Zone(3)], 5), layout.strip(5))
+
+    def test_openrgb_reads_the_matrix_map(self):
+        name, count, _c, _z, shape = openrgb.parse_controller_zones(
+            controller_v0("keys", [(0, 0, 0)] * 4, matrix=True))
+        self.assertEqual(shape[0].matrix, (2, 2, (0, 1, 2, 3)))
+        places = layout.device(shape, count)
+        self.assertEqual([round(a, 2) for a, _r in places], [0.25, 0.75, 0.25, 0.75])
+
+
+class RippleTests(unittest.TestCase):
+    """a kick rolls out from the middle: the edge hears it later and a
+    little softer, and never flashes more often than the middle."""
+
+    def _play(self, frames):
+        ripple = show_mod.Ripple()
+        mid, edge = [], []
+        for level in frames:
+            ripple.push(level)
+            mid.append(ripple.at(0.0))
+            edge.append(ripple.at(1.0))
+        return mid, edge
+
+    def test_the_edge_hears_the_kick_later(self):
+        kick = [0.1] * 5 + [1.0] + [0.1] * 30
+        mid, edge = self._play(kick)
+        late = round(show_mod.TRAVEL_S * show_mod.FPS)
+        self.assertEqual(mid.index(1.0), 5)
+        self.assertEqual(edge.index(1.0), 5 + late)
+
+    def test_the_edge_is_softer_but_the_resting_glow_isnt(self):
+        places = [(0.5, 0.0), (0.5, 1.0)]
+        white = ((1.0, 1.0, 1.0), (1.0, 1.0, 1.0))
+        lit = show_mod.paint(places, white, lambda _r: 1.0, 0.1, 0.0)
+        self.assertGreater(lit[0][0], lit[1][0])
+        rest = show_mod.paint(places, white, lambda _r: 0.1, 0.1, 0.0)
+        self.assertEqual(rest[0], rest[1])
+
+
 class ColourChoiceTests(unittest.TestCase):
     """bright, true colours on leds (2026-10-21: igor's pink came out a
     weird salmon, and a red cover lit half the leds blue)."""

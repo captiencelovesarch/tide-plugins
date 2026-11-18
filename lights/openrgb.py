@@ -16,6 +16,8 @@ import socket
 import struct
 import time
 
+from . import layout
+
 PORT = 6742
 MAGIC = b"ORGB"
 HEADER = struct.Struct("<4sIII")
@@ -76,12 +78,14 @@ class _Reader:
 
 def parse_controller(data: bytes) -> tuple[str, int, list[tuple[int, int, int]]]:
     """(name, led count, its colours now) from protocol-0 controller data."""
-    name, count, colors, _zones = parse_controller_zones(data)
+    name, count, colors, _zones, _shape = parse_controller_zones(data)
     return name, count, colors
 
 
 def parse_controller_zones(data: bytes):
-    """parse_controller, plus each zone as (name, leds, min, max)."""
+    """parse_controller, plus each zone as (name, leds, min, max), plus
+    where its leds sit (layout.Zone each: kind, and a keyboard's matrix
+    map)."""
     r = _Reader(data)
     r.take("<I")                    # data size
     r.take("<i")                    # device type
@@ -96,14 +100,24 @@ def parse_controller_zones(data: bytes):
         r.skip(4 * 9)
         r.skip(4 * r.take("<H"))    # the mode's colours
     zone_list = []
+    shape = []
     for _ in range(r.take("<H")):
         zname = r.string()
-        r.take("<i")                # zone type
+        kind = r.take("<i")         # zone type: single, linear, matrix
         lo = r.take("<I")
         hi = r.take("<I")
         n = r.take("<I")
         zone_list.append((zname, n, lo, hi))
-        r.skip(r.take("<H"))        # matrix map, if any
+        size = r.take("<H")         # matrix map, if any: height, width, cells
+        matrix = None
+        if size >= 8:
+            h, w = r.take("<I"), r.take("<I")
+            if h * w and 8 + 4 * h * w <= size:
+                matrix = (h, w, struct.unpack_from(f"<{h * w}I", r.data, r.at))
+            r.skip(size - 8)
+        else:
+            r.skip(size)
+        shape.append(layout.Zone(n, kind, matrix))
     zone_leds = sum(z[1] for z in zone_list)
     for _ in range(r.take("<H")):   # leds: a name and a value each
         r.string()
@@ -115,7 +129,7 @@ def parse_controller_zones(data: bytes):
         colors.append((c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF))
     if count == 0:
         count = zone_leds
-    return name, count, colors, zone_list
+    return name, count, colors, zone_list, shape
 
 
 def empty_headers(zones: list) -> list[int]:
@@ -136,6 +150,8 @@ class Server:
         self.sock: socket.socket | None = None
         self.devices: list[str] = []
         self.leds: list[int] = []
+        # where each device's leds sit: (along, reach) per led (layout.py)
+        self.places: list[list[tuple[float, float]]] = []
         self._saved: list[list[tuple[int, int, int]]] = []
         self._checked = 0.0
         self.size_headers = True
@@ -170,7 +186,7 @@ class Server:
 
     # ---- what the show calls ----
 
-    def _query(self, size_headers: bool = False) -> list[tuple[str, int, list]]:
+    def _query(self, size_headers: bool = False) -> list[tuple[str, int, list, list]]:
         """every device. with ``size_headers``, an addressable header that
         was never set up gets HEADER_GUESS leds first (openrgb keeps the
         size), so a cooler or fans on it light up without opening
@@ -181,12 +197,13 @@ class Server:
         resized = []
         for i in range(count):
             self._send(i, REQUEST_CONTROLLER_DATA)
-            name, leds, colors, zones = parse_controller_zones(self._reply(REQUEST_CONTROLLER_DATA))
+            name, leds, colors, zones, shape = parse_controller_zones(
+                self._reply(REQUEST_CONTROLLER_DATA))
             if size_headers:
                 for z in empty_headers(zones):
                     self._send(i, RESIZE_ZONE, struct.pack("<ii", z, HEADER_GUESS))
                     resized.append(f"{name}: {zones[z][0]}")
-            rows.append((name, leds, colors))
+            rows.append((name, leds, colors, layout.device(shape, leds)))
         if resized:
             self.resized = resized
             return self._query()
@@ -198,14 +215,15 @@ class Server:
         one whose size changed, is put in direct mode."""
         saved = dict(zip(self.devices, self._saved))
         before = dict(zip(self.devices, self.leds))
-        self.devices = [name for name, _n, _c in rows]
-        self.leds = [n for _name, n, _c in rows]
-        self._saved = [saved.get(name, colors) for name, _n, colors in rows]
+        self.devices = [name for name, _n, _c, _p in rows]
+        self.leds = [n for _name, n, _c, _p in rows]
+        self.places = [places for _name, _n, _c, places in rows]
+        self._saved = [saved.get(name, colors) for name, _n, colors, _p in rows]
         # leds that appeared since (a header given a size) had no colour
         # of their own before tide: they go dark when tide lets go
         self._saved = [c + [(0, 0, 0)] * max(0, n - len(c))
                        for c, n in zip(self._saved, self.leds)]
-        for i, (name, n, _c) in enumerate(rows):
+        for i, (name, n, _c, _p) in enumerate(rows):
             if n and before.get(name) != n:
                 self._send(i, SET_CUSTOM_MODE)
         self.name = f"openrgb ({len(self.devices)})"
@@ -237,7 +255,7 @@ class Server:
                           "start it with openrgb --server") from None
         self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self._send(0, SET_CLIENT_NAME, b"tide\0")
-        self.devices, self.leds, self._saved = [], [], []
+        self.devices, self.leds, self.places, self._saved = [], [], [], []
         self._take(self._query(size_headers=self.size_headers))
         if not any(self.leds):
             raise OSError("openrgb has no lights to drive")

@@ -2,7 +2,7 @@
 slug        = "lights"
 name        = "lights"
 description = "your rgb lights pulse with the bass in the cover's colours. openrgb and wled."
-version     = "0.1.0"
+version     = "0.2.0"
 api         = 1
 entry       = "plugin:Lights"
 uses        = ["playback", "network"]
@@ -15,6 +15,14 @@ kind    = "choice"
 choices = [["kick", "on the kick"], ["breathing", "breathing"]]
 default = "kick"
 tooltip = "never more than three flashes a second. a faster beat still shows, just softer."
+
+[[setting]]
+key     = "spread"
+label   = "the beat"
+kind    = "choice"
+choices = [["ripple", "ripples out from the middle"], ["together", "hits every light at once"]]
+default = "ripple"
+tooltip = "a kick lands in the middle of your keyboard and rolls out to the edges. ram sticks and fan strips light up from their middle out."
 
 [[setting]]
 key     = "strength"

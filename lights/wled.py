@@ -12,6 +12,8 @@ import json
 import socket
 import urllib.request
 
+from . import layout
+
 PORT = 21324
 DRGB, DNRGB = 2, 4
 DRGB_MAX = 490             # leds in one plain packet
@@ -46,6 +48,7 @@ class Strip:
         self.host, self.port, self.http_port = parse_address(address)
         self.name = self.host
         self.leds: list[int] = []        # one entry per device: its led count
+        self.places: list[list[tuple[float, float]]] = []
         self.sock: socket.socket | None = None
 
     def connect(self) -> None:
@@ -57,6 +60,7 @@ class Strip:
             raise OSError(f"{self.host} reported no leds")
         self.name = str(info.get("name") or self.host)
         self.leds = [count]
+        self.places = [layout.strip(count)]
         addr = socket.getaddrinfo(self.host, self.port, type=socket.SOCK_DGRAM)[0]
         self.sock = socket.socket(addr[0], socket.SOCK_DGRAM)
         self.sock.connect(addr[4])

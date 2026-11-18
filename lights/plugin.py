@@ -98,7 +98,8 @@ class Lights:
         if self.show is None:
             return
         s = self.ctx.settings
-        self.show.configure(mode=s["mode"], strength=s["strength"], paused=s["paused"])
+        self.show.configure(mode=s["mode"], strength=s["strength"], paused=s["paused"],
+                            spread=s["spread"])
 
     def _settings_changed(self, keys) -> None:
         if {"openrgb", "openrgb_address", "start_openrgb"} & set(keys):
