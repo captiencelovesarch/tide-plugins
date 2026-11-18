@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import time
 
+import shiboken6
 from PySide6.QtCore import QEvent, QPoint, QPointF, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import (
     QColor, QEnterEvent, QFont, QFontMetrics, QIcon, QImage, QMouseEvent, QPainter,
@@ -27,7 +28,7 @@ from PySide6.QtWidgets import (
     QStackedWidget, QVBoxLayout, QWidget,
 )
 
-from . import icons
+from . import icons, visual
 from .vr import PANEL_PX, TOAST_PX, WATCH_PX
 
 COVER_PX = 250
@@ -47,8 +48,11 @@ TABS = (("now", "note", "now playing"),
 # buttons too small to touch
 VR_SETTINGS_COLUMNS = (
     ("watch_hand", "open_by_looking", "touch", "size", "linger", "toast"),
-    ("ring", "ring_strength", "panel_glow", "lyrics", "haptics", "voice_model"),
+    ("visualizer", "ring_strength", "panel_glow", "lyrics", "haptics", "voice_model"),
 )
+# shorter labels than the desktop dialog's, so five choices fit a column
+VR_LABELS = {"watch only": "watch", "floor ripples": "floor", "corner chip": "corner",
+             "bottom glow": "bottom"}
 VR_SETTINGS = tuple(k for col in VR_SETTINGS_COLUMNS for k in col)
 RECENT_MAX = 8
 ROW_TEXT_W = 430           # a song row's title, beside its radio and next buttons
@@ -110,6 +114,16 @@ class Forwarder:
     def _at(self, p: QPointF) -> QWidget:
         return self.root.childAt(p.toPoint()) or self.root
 
+    def _forget_dead(self) -> None:
+        """drop the hovered and pressed widgets if a list replaced them.
+        opening an album put "loading" under the laser; its songs then
+        deleted it, and every laser move after raised on the old widget
+        until tide switched the plugin off (2026-11-04)."""
+        if self.hover is not None and not shiboken6.isValid(self.hover):
+            self.hover = None
+        if self.grab is not None and not shiboken6.isValid(self.grab):
+            self.grab = None
+
     @staticmethod
     def _scroll_area(w: QWidget | None) -> QAbstractScrollArea | None:
         while w is not None:
@@ -143,6 +157,7 @@ class Forwarder:
             self.grab = None
 
     def handle(self, kind: str, x: float, y: float) -> None:
+        self._forget_dead()
         if kind == "leave":
             self._cancel_press()
             self.dragging = False
@@ -215,6 +230,7 @@ class Forwarder:
 
     def scroll(self, notches: float) -> None:
         """the stick, while pointing at the panel."""
+        self._forget_dead()
         area = self._scroll_area(self._at(self.pos))
         if area is not None:
             bar = area.verticalScrollBar()
@@ -390,6 +406,11 @@ class _Cover(QLabel):
         p.end()
 
     def _got(self, url: str, img) -> None:
+        # the row or tile can be gone by the time its cover comes (a new
+        # search, an album's songs replacing "loading"). touching it raised,
+        # and a page of late covers switched the plugin off (2026-11-04)
+        if not shiboken6.isValid(self):
+            return
         if url != self._url or img is None or img.isNull():
             return
         px = self.px
@@ -439,6 +460,9 @@ class _Segments(QWidget):
             row.addWidget(b)
             self.buttons.append((value, b))
         row.addStretch(1)
+        # five or more (the visualizer's) only fit a settings column with
+        # less room round each label
+        self.extra = "padding: 0 9px;" if len(values) > 4 else ""
 
     def select(self, value) -> None:
         for v, b in self.buttons:
@@ -446,7 +470,7 @@ class _Segments(QWidget):
 
     def restyle(self, look: _Look, px: int = 19) -> None:
         for _v, b in self.buttons:
-            look.apply(b, px, True)
+            look.apply(b, px, True, self.extra)
 
 
 # ---------------------------------------------------------------------------
@@ -1273,7 +1297,8 @@ class _Settings(QWidget):
         elif d.kind == "bool":
             values = [(True, "on"), (False, "off")]
         else:
-            values = [(v, lab.replace(" of looking away", "")) for v, lab in d.choices]
+            values = [(v, VR_LABELS.get(lab, lab.replace(" of looking away", "")))
+                      for v, lab in d.choices]
         seg = _Segments(ctx, values, height=46)
         if d.kind == "action":
             for _v, b in seg.buttons:
@@ -1667,5 +1692,74 @@ def toast_face(ctx, title: str, artists: str, cover: QImage | None) -> QImage:
     p.setPen(QColor(look.dim))
     p.drawText(QRectF(x, pad + 98, text_w, 44), Qt.AlignLeft | Qt.AlignVCenter,
                QFontMetrics(body).elidedText(t.case(artists), Qt.ElideRight, int(text_w)))
+    p.end()
+    return img
+
+
+def chip_face(ctx, cover: QImage | None) -> QImage:
+    """the corner chip's cover: rounded on modern, square with tide's
+    border on brutalist."""
+    look = _Look(ctx)
+    px = visual.CHIP_PX
+    img = QImage(px, px, QImage.Format_RGBA8888)
+    img.fill(Qt.transparent)
+    p = QPainter(img)
+    p.setRenderHint(QPainter.Antialiasing)
+    p.setRenderHint(QPainter.SmoothPixmapTransform)
+    r = visual.CHIP_RADIUS if look.modern else 0
+    box = QRectF(0, 0, px, px)
+    clip = QPainterPath()
+    clip.addRoundedRect(box, r, r)
+    p.setClipPath(clip)
+    if cover is not None and not cover.isNull():
+        p.drawImage(box, cover.scaled(px, px, Qt.KeepAspectRatioByExpanding,
+                                      Qt.SmoothTransformation))
+    else:
+        p.fillRect(box, QColor(look.hover))
+        p.setFont(look.font(60, True, "title"))
+        p.setPen(QColor(look.dim))
+        p.drawText(box, Qt.AlignCenter, ctx.theme.case("tide"))
+    if not look.modern:
+        p.setClipping(False)
+        p.setPen(QPen(QColor(look.border), 8))
+        p.setBrush(Qt.NoBrush)
+        p.drawRect(box.adjusted(4, 4, -4, -4))
+    p.end()
+    return img
+
+
+def chip_title(ctx, title: str, artists: str, side: str) -> QImage:
+    """the song beside the chip, on a dark backing so it reads over any
+    game. lined up against the chip: left-aligned when the chip is on the
+    left."""
+    look = _Look(ctx)
+    t = ctx.theme
+    w, h = visual.TITLE_PX
+    img = QImage(w, h, QImage.Format_RGBA8888)
+    img.fill(Qt.transparent)
+    p = QPainter(img)
+    p.setRenderHint(QPainter.Antialiasing)
+    p.setRenderHint(QPainter.TextAntialiasing)
+    pad = 22
+    title_font = look.font(44, True, "title")
+    body = look.font(30)
+    text_w = w - 2 * pad
+    lines = (QFontMetrics(title_font).elidedText(t.case(title), Qt.ElideRight, text_w),
+             QFontMetrics(body).elidedText(t.case(artists), Qt.ElideRight, text_w))
+    used = max(QFontMetrics(title_font).horizontalAdvance(lines[0]),
+               QFontMetrics(body).horizontalAdvance(lines[1])) + 2 * pad
+    bg = QColor(look.bg)
+    bg.setAlpha(215)
+    back = QRectF(0 if side == "left" else w - used, 0, used, h)
+    p.setPen(QPen(QColor(look.border), 3) if not look.modern else Qt.NoPen)
+    p.setBrush(bg)
+    p.drawRoundedRect(back.adjusted(1.5, 1.5, -1.5, -1.5), look.radius(26), look.radius(26))
+    align = (Qt.AlignLeft if side == "left" else Qt.AlignRight) | Qt.AlignVCenter
+    p.setFont(title_font)
+    p.setPen(QColor(look.fg))
+    p.drawText(QRectF(pad, 8, text_w, 66), align, lines[0])
+    p.setFont(body)
+    p.setPen(QColor(look.dim))
+    p.drawText(QRectF(pad, 72, text_w, 48), align, lines[1])
     p.end()
     return img

@@ -2,7 +2,7 @@
 slug        = "steamvr"
 name        = "steamvr"
 description = "check the watch on your wrist and tide opens in vr. look away and it goes."
-version     = "0.3.0"
+version     = "0.4.0"
 api         = 1
 entry       = "plugin:SteamVr"
 # pyopenvr. on arch: the python-openvr package
@@ -55,19 +55,20 @@ choices = [[1.5, "1.5 s of looking away"], [2.5, "2.5 s of looking away"], [4.0,
 default = 2.5
 
 [[setting]]
-key     = "ring"
-label   = "ring"
+key     = "visualizer"
+label   = "visualizer"
 kind    = "choice"
-choices = [["off", "off"], ["kick", "on the kick"], ["breathing", "breathing"]]
+choices = [["off", "off"], ["watch", "watch only"], ["floor", "floor ripples"], ["corner", "corner chip"], ["bottom", "bottom glow"]]
 default = "off"
-tooltip = "a glow on the edge of your view that pulses with the music. never more than three flashes a second. needs motion on."
+tooltip = "the music in your headset. watch only: the watch glows with the beat. floor ripples: a ring spreads across the floor on each kick. corner chip: the cover low in a corner of your view, with a glow that beats. bottom glow: light along the bottom of your view. the watch glows in all of them. never more than three flashes a second. needs motion on."
 
 [[setting]]
 key     = "ring_strength"
-label   = "ring strength"
+label   = "visualizer strength"
 kind    = "choice"
 choices = [["subtle", "subtle"], ["normal", "normal"], ["loud", "loud"]]
 default = "normal"
+tooltip = "how bright the visualizer and the panel glow get."
 
 [[setting]]
 key     = "panel_glow"
@@ -75,7 +76,7 @@ label   = "panel glow"
 kind    = "choice"
 choices = [["off", "off"], ["kick", "on the kick"], ["breathing", "breathing"]]
 default = "kick"
-tooltip = "the panel's edge glows with the music, in the cover's colours. same flash limit as the ring. needs motion on."
+tooltip = "the panel's edge glows with the music, in the cover's colours. same flash limit as the visualizer. needs motion on."
 
 [[setting]]
 key     = "lyrics"

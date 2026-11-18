@@ -335,6 +335,71 @@ class ForwarderTests(unittest.TestCase):
         fwd.scroll(-2.0)
         self.assertEqual(self.area.verticalScrollBar().value(), 2 * fwd.STICK_PX)
 
+    def test_list_replaced_under_the_laser(self):
+        """an album's songs replace "loading" while the laser is on it: the
+        next moves used to raise on the deleted widget (2026-11-04)."""
+        from PySide6.QtWidgets import QPushButton, QVBoxLayout, QWidget
+        fwd = self.panel.Forwarder(self.root)
+        fwd.handle("move", 100, 30)
+        self.assertIsNotNone(fwd.hover)
+        fresh = QWidget()
+        col = QVBoxLayout(fresh)
+        b = QPushButton("new row")
+        b.setFixedHeight(60)
+        b.clicked.connect(lambda: self.clicks.append("new"))
+        col.addWidget(b)
+        col.addStretch(1)
+        self.area.setWidget(fresh)          # deletes the old rows
+        self.app.processEvents()
+        fwd.handle("move", 100, 32)
+        fwd.handle("down", 100, 32)
+        fwd.handle("up", 100, 32)
+        self.assertEqual(self.clicks, ["new"])
+
+    def test_a_cover_for_a_deleted_row_is_dropped(self):
+        from PySide6.QtGui import QImage
+        import shiboken6
+
+        class Ctx:
+            class track:
+                waiting = []
+
+                @classmethod
+                def art(cls, url, cb):
+                    cls.waiting.append(cb)
+
+        cover = self.panel._Cover(Ctx, 60)
+        cover.load("https://example.invalid/a.jpg")
+        shiboken6.delete(cover)
+        img = QImage(8, 8, QImage.Format_RGBA8888)
+        img.fill(Qt.red)
+        Ctx.track.waiting[0](img)           # used to raise
+
+    def test_reconnect_after_a_session_ended(self):
+        """the second session onward died on the spot: the panel's back,
+        kept from the first, went into a dict made after it (2026-11-04)."""
+        try:
+            import openvr  # noqa: F401
+        except ImportError:
+            self.skipTest("pyopenvr isn't installed")
+        _vr_pkg("tide_plugins_vrloop_steamvr")
+        vr = importlib.import_module("tide_plugins_vrloop_steamvr.vr")
+
+        class System:
+            def getFloatTrackedDeviceProperty(self, *_a):
+                return 90.0
+
+            def getDeviceToAbsoluteTrackingPose(self, *_a):
+                raise vr._Lost("steamvr quit")
+
+        t = vr.VrThread(vr.VrBridge(), None, {"log_path": os.devnull})
+        t.system = System()
+        t.back_img = t.glow_img = object()      # what a first session leaves
+        with self.assertRaises(vr._Lost):
+            t._loop()
+        for name in [n for n in sys.modules if n.startswith("tide_plugins_vrloop_steamvr")]:
+            del sys.modules[name]
+
 
 class PluginLifecycleTests(unittest.TestCase):
     """the real plugin under the real host, steamvr kept out."""
@@ -370,6 +435,21 @@ class PluginLifecycleTests(unittest.TestCase):
         for tab in ("search", "library", "settings", "now"):
             plugin.panel.show_tab(tab)
             app.processEvents()
+        # the visualizer's five choices fit their column, none squeezed
+        plugin.panel.show_tab("settings")
+        app.processEvents()
+        seg = plugin.panel.settings_page.rows["visualizer"][1]
+        for _v, b in seg.buttons:
+            self.assertGreaterEqual(b.width(), b.sizeHint().width() - 1, b.text())
+            right = b.mapTo(plugin.panel, b.rect().topRight()).x()
+            self.assertLess(right, plugin.panel.width() - 34)
+        plugin.panel.show_tab("now")
+        mod = sys.modules[type(plugin).__module__.rsplit(".", 1)[0] + ".panel"]
+        face = mod.chip_face(plugin.ctx, None)
+        self.assertEqual((face.width(), face.height()), (256, 256))
+        title = mod.chip_title(plugin.ctx, "a song", "someone", "right")
+        self.assertEqual(title.pixelColor(2, 66).alpha(), 0)        # backed on the right only
+        self.assertGreater(title.pixelColor(title.width() - 6, 66).alpha(), 150)
         img = plugin.panel.frame()
         if plugin.ctx.theme.aesthetic() == "modern":
             # rounded corners are see-through, not black (2026-10-19)
@@ -839,6 +919,159 @@ class VrThreadPanelTests(unittest.TestCase):
         pose = self.t.panel_pose @ self.geo.turn_around()
         self.assertTrue(np.allclose(pose[:3, 2], -self.t.panel_pose[:3, 2]))
         self.assertTrue(np.allclose(pose[:3, 3], self.t.panel_pose[:3, 3]))
+
+
+class VisualTests(unittest.TestCase):
+    """the visualizer's textures and timing (visual.py), 2026-11-04."""
+
+    def setUp(self):
+        from PySide6.QtWidgets import QApplication
+        QApplication.instance() or QApplication([])
+        _vr_pkg("tide_plugins_visual_steamvr")
+        self.visual = importlib.import_module("tide_plugins_visual_steamvr.visual")
+        self.ring = importlib.import_module("tide_plugins_visual_steamvr.ring")
+        self.colors = ((1.0, 0.3, 0.6), (1.0, 0.55, 0.2))
+
+    def tearDown(self):
+        for name in [n for n in sys.modules if n.startswith("tide_plugins_visual_steamvr")]:
+            del sys.modules[name]
+
+    def test_floor_ring_is_a_ring(self):
+        img = self.visual.floor_ring(self.colors)
+        px = img.width()
+        mid = px // 2
+        self.assertEqual(img.pixelColor(mid, mid).alpha(), 0)          # clear in the middle
+        self.assertEqual(img.pixelColor(0, 0).alpha(), 0)              # and outside
+        edge = int(mid + mid * self.visual.RIPPLE_EDGE)
+        self.assertGreater(img.pixelColor(edge, mid).alpha(), 200)
+
+    def test_watch_glow_leaves_the_watch_clear(self):
+        img = self.visual.disc_glow(self.colors)
+        mid = img.width() // 2
+        self.assertEqual(img.pixelColor(mid, mid).alpha(), 0)
+        just_out = int(mid + mid * self.visual.WATCH_DISC / self.visual.WATCH_GLOW) + 3
+        self.assertGreater(img.pixelColor(just_out, mid).alpha(), 150)
+
+    def test_each_mode_draws_its_layers(self):
+        eye = {"uv": self.ring.ellipse_uv(), "proj": [-1.4, 1.2, -1.4, 1.4], "eye_x": -0.03}
+        eyes = {"left": eye, "right": dict(eye, eye_x=0.03)}
+        for mode, names in self.visual.LAYERS.items():
+            out = self.visual.textures(mode, eyes, self.colors, "modern")
+            # the chip's cover and title come from panel.py
+            want = {n for n in names if n not in ("chip", "chip_title")}
+            self.assertEqual(set(out), want, mode)
+        # no lens outlines yet: the bottom glow waits for them
+        self.assertEqual(set(self.visual.textures("bottom", None, self.colors, "modern")),
+                         {"watch_glow"})
+
+    def test_bottom_glow_is_only_at_the_bottom(self):
+        eye = {"uv": self.ring.ellipse_uv(), "proj": [-1.4, 1.2, -1.4, 1.4], "eye_x": -0.03}
+        (glow, _rim), _w = self.ring.draw({"left": eye, "right": dict(eye)}, part="bottom")
+        x = glow.width() // 4                       # the left eye's middle
+        column = [glow.pixelColor(x, y).alpha() for y in range(glow.height())]
+        half = len(column) // 2
+        self.assertLessEqual(max(column[:half]), 2)     # the anti-banding noise, no more
+        self.assertGreater(max(column[half:]), 100)
+
+    def test_ripple_spreads_and_fades(self):
+        looks = [self.visual.ripple_look(t) for t in (0.1, 0.5, 1.0, 1.5)]
+        widths, alphas = zip(*looks)
+        self.assertEqual(list(widths), sorted(widths))
+        self.assertEqual(list(alphas), sorted(alphas, reverse=True))
+        self.assertIsNone(self.visual.ripple_look(self.visual.RIPPLE_S + 0.01))
+
+    def test_floor_pose_lies_flat_under_you(self):
+        pose = self.visual.floor_pose(np.array([0.4, 1.7, -0.2]))
+        self.assertTrue(np.allclose(pose[:3, 2], (0.0, 1.0, 0.0)))     # seen from above
+        self.assertTrue(np.allclose(pose[:3, 3], (0.4, self.visual.FLOOR_LIFT_M, -0.2)))
+        self.assertAlmostEqual(np.linalg.det(pose[:3, :3]), 1.0)
+
+    def test_chip_sits_low_on_the_side_away_from_the_watch(self):
+        side = self.visual.chip_side("right")
+        self.assertEqual(side, "left")
+        chip = self.visual.chip_pose(side)[:3, 3]
+        title = self.visual.title_pose(side)[:3, 3]
+        self.assertLess(chip[0], 0.0)
+        self.assertLess(chip[1], 0.0)
+        self.assertGreater(title[0], chip[0])       # the title is toward the middle
+
+
+class VrVisualizerTests(unittest.TestCase):
+    """the vr thread running the visualizer on fake overlays."""
+
+    def setUp(self):
+        _vr_pkg("tide_plugins_vrvis_steamvr")
+        self.vr = importlib.import_module("tide_plugins_vrvis_steamvr.vr")
+        self.visual = importlib.import_module("tide_plugins_vrvis_steamvr.visual")
+        geo = importlib.import_module("tide_plugins_vrvis_steamvr.geometry")
+        ring = importlib.import_module("tide_plugins_vrvis_steamvr.ring")
+        t = self.vr.VrThread(self.vr.VrBridge(), None, {"log_path": os.devnull})
+        t.watch = _FakeOverlay()
+        t.flash, t.envelope, t.ripple = geo.FlashLimiter(), ring.Envelope(), ring.Ripple()
+        t.ripples, t.ripple_n = {}, 0
+        t.chip_fade = self.visual.Fade()
+        t.title_at = None
+        t.watch_pose = None
+        t.playing = True
+        t._hmd = lambda: at(0.3, 1.7, -0.1)
+
+        class Gl:
+            def drop(self, _tex):
+                pass
+        t._gl = Gl()
+        self.t = t
+
+    def tearDown(self):
+        for name in [n for n in sys.modules if n.startswith("tide_plugins_vrvis_steamvr")]:
+            del sys.modules[name]
+
+    def ticks(self, beats, start=0.0):
+        for i, b in enumerate(beats):
+            self.t.beat = b
+            self.t._vis_tick(start + i / 90)
+
+    def test_a_kick_starts_a_floor_ripple_under_you(self):
+        self.t.settings["visualizer"] = "floor"
+        self.t.vis = {k: _FakeOverlay() for k in self.visual.ripple_keys()}
+        for o in self.t.vis.values():
+            o.place = lambda pose, o=o: setattr(o, "pose", pose)
+        self.ticks([0.0, 0.0, 0.9, 0.5, 0.3, 0.2])
+        shown = [o for o in self.t.vis.values() if o.visible]
+        self.assertEqual(len(shown), 1)
+        self.assertTrue(np.allclose(shown[0].pose[:3, 3], (0.3, self.visual.FLOOR_LIFT_M, -0.1)))
+        self.assertGreater(shown[0].a, 0.0)
+        # gone once it's spread out
+        self.ticks([0.0] * int(90 * self.visual.RIPPLE_S + 5), start=1.0)
+        self.assertFalse(any(o.visible for o in self.t.vis.values()))
+
+    def test_chip_goes_while_the_panel_is_open(self):
+        self.t.settings["visualizer"] = "corner"
+        self.t.vis = {k: _FakeOverlay() for k in ("chip", "chip_ring", "chip_title")}
+        self.t.panel_open = False
+        self.ticks([0.5] * 60)
+        self.assertTrue(self.t.vis["chip"].visible)
+        self.t.panel_open = True
+        self.ticks([0.5] * 60, start=1.0)
+        self.assertFalse(self.t.vis["chip"].visible)
+
+    def test_switching_mode_drops_the_old_layers(self):
+        self.t.settings["visualizer"] = "watch"
+        destroyed = []
+        self.t.vis = {k: _FakeOverlay() for k in self.visual.ripple_keys() + ["watch_glow"]}
+        for k, o in self.t.vis.items():
+            o.destroy = lambda k=k: destroyed.append(k)
+            o.tex = None
+        self.t._vis_settings("floor", self.t.settings.get("watch_hand"))
+        self.assertEqual(set(self.t.vis), {"watch_glow"})
+        self.assertEqual(sorted(destroyed), sorted(self.visual.ripple_keys()))
+
+    def test_off_hides_everything(self):
+        self.t.settings["visualizer"] = "off"
+        o = _FakeOverlay()
+        o.visible = True
+        self.t.vis = {"watch_glow": o}
+        self.ticks([0.9])
+        self.assertFalse(o.visible)
 
 
 class PanelLookTests(unittest.TestCase):

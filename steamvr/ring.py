@@ -40,6 +40,12 @@ RIM_REACH = 0.009
 INSET = 0.86
 HALO = 0.45               # how far the glow spills outward, as a share of its reach
 SMOOTHING = 2             # rounds of corner cutting on the outline
+# part="bottom" (the visualizer's bottom glow): only the arc under your
+# view, fading in between these angles from the top (pi is straight down),
+# and reaching further in, like light coming up from below
+BOTTOM_FROM = 0.58 * math.pi
+BOTTOM_TO = 0.86 * math.pi
+BOTTOM_REACH = 2.2
 
 from tide.plugin_api import PULSE_MODES as MODES  # noqa: E402
 from tide.plugin_api import STRENGTH, Envelope, Kicks, cover_colors, glow_level  # noqa: E402,F401
@@ -109,8 +115,14 @@ def _edge_distance(px: np.ndarray, py: np.ndarray, poly: np.ndarray) -> np.ndarr
     return best
 
 
+def _bottom_weight(ang: np.ndarray) -> np.ndarray:
+    """0 round the top and sides, easing to 1 under your view."""
+    t = np.clip((np.abs(ang) - BOTTOM_FROM) / (BOTTOM_TO - BOTTOM_FROM), 0.0, 1.0)
+    return t * t * (3.0 - 2.0 * t)
+
+
 def _layer(distances: list, insides: list, visibles: list, angles: list, reach_px: float,
-           colors: tuple, rng: np.random.Generator, hard: bool) -> np.ndarray:
+           colors: tuple, rng: np.random.Generator, hard: bool, part: str = "all") -> np.ndarray:
     """rgba for both eye halves side by side. ``insides``: inside the
     pulled-in outline; ``visibles``: inside the lens at all."""
     halves = []
@@ -124,6 +136,8 @@ def _layer(distances: list, insides: list, visibles: list, angles: list, reach_p
             a = np.exp(-(d / reach_px) ** 1.4)
             out = np.exp(-(d / (reach_px * HALO)) ** 2)
         a = np.where(inside, a, np.where(visible, out, 0.0)).astype(np.float32)
+        if part == "bottom":
+            a = a * _bottom_weight(ang).astype(np.float32)
         # two colours round the rim: c1 at the top, c2 at the bottom
         mix = (0.5 - 0.5 * np.cos(ang))[..., None].astype(np.float32)
         rgb = c1 * (1.0 - mix) + c2 * mix
@@ -133,11 +147,12 @@ def _layer(distances: list, insides: list, visibles: list, angles: list, reach_p
 
 
 def draw(eyes: dict, colors: tuple = ((1.0, 0.83, 0.0), (1.0, 0.45, 0.2)),
-         style: str = "modern", distance: float = DISTANCE_M):
+         style: str = "modern", distance: float = DISTANCE_M, part: str = "all"):
     """([glow, rim] as QImages, quad width in metres).
 
     ``colors``: two rgb tuples 0..1 (top of the rim, bottom). ``style``:
-    modern (soft, two colours) or brutalist (a crisper band)."""
+    modern (soft, two colours) or brutalist (a crisper band). ``part``:
+    "all" round the lens, or "bottom" for the arc under your view."""
     from PySide6.QtCore import Qt
     from PySide6.QtGui import QImage
 
@@ -176,10 +191,13 @@ def draw(eyes: dict, colors: tuple = ((1.0, 0.83, 0.0), (1.0, 0.45, 0.2)),
     if hard:
         colors = (colors[0], colors[0])
     glow_reach = GLOW_REACH["brutalist" if hard else "modern"] * sw
+    if part == "bottom":
+        glow_reach *= BOTTOM_REACH
     layers = [
-        _layer(distances, insides, visibles, angles, glow_reach, colors, rng, hard),
+        _layer(distances, insides, visibles, angles, glow_reach, colors, rng, hard, part),
         _layer(distances, insides, visibles, angles, RIM_REACH * sw, ((1, 1, 1), (1, 1, 1)) if hard
-               else tuple(tuple(min(1.0, c * 0.4 + 0.6) for c in col) for col in colors), rng, hard),
+               else tuple(tuple(min(1.0, c * 0.4 + 0.6) for c in col) for col in colors), rng, hard,
+               part),
     ]
     images = []
     for rgba in layers:
@@ -194,14 +212,16 @@ PANEL_MARGIN = 0.12            # glow room on each side, as a share of the panel
 PANEL_REACH = 0.045
 
 
-def panel_glow(size: tuple[int, int], radius: int, colors: tuple, style: str = "modern"):
+def panel_glow(size: tuple[int, int], radius: int, colors: tuple, style: str = "modern",
+               margin: float = PANEL_MARGIN, reach: float = PANEL_REACH, under: float = 0.0):
     """(the glow round a ``size`` panel with ``radius`` corners, as a
     QImage, and how much wider than the panel it is). nothing inside the
-    panel's shape; the vr thread fades it with the beat."""
+    panel's shape; the vr thread fades it with the beat. the corner chip
+    uses it too, with more ``margin`` and ``reach`` (shares of the width)."""
     from PySide6.QtCore import Qt
     from PySide6.QtGui import QImage
     w, h = size
-    m = int(round(w * PANEL_MARGIN))
+    m = int(round(w * margin))
     tw, th = w + 2 * m, h + 2 * m
     sw, sh = tw // SCALE, th // SCALE
     ys, xs = np.mgrid[0:sh, 0:sw].astype(np.float32) + 0.5
@@ -211,20 +231,24 @@ def panel_glow(size: tuple[int, int], radius: int, colors: tuple, style: str = "
     qx = np.abs(xs) - (w / 2 - r)
     qy = np.abs(ys) - (h / 2 - r)
     d = np.hypot(np.maximum(qx, 0), np.maximum(qy, 0)) + np.minimum(np.maximum(qx, qy), 0) - r
-    reach = PANEL_REACH * w
+    reach = reach * w
     hard = style == "brutalist"
     if hard:
         a = np.clip(1.0 - d / reach, 0.0, 1.0) ** 0.8
     else:
         a = np.exp(-(np.maximum(d, 0) / reach) ** 1.3)
-    a = np.where(d > 0, a, 0.0).astype(np.float32)
+    # ``under``: start that far inside the shape (a share of the width),
+    # where what sits on top hides it. drawn small and scaled up, a glow
+    # stopping right at the edge left a dark seam round the corner chip
+    edge = -under * w
+    a = np.where(d > edge, np.clip(a, 0.0, 1.0), 0.0).astype(np.float32)
     c1 = np.array(colors[0], dtype=np.float32)
     c2 = np.array(colors[1 if not hard else 0], dtype=np.float32)
     mix = (0.5 - 0.5 * np.cos(np.arctan2(xs, -ys)))[..., None].astype(np.float32)
     rgb = c1 * (1.0 - mix) + c2 * mix
     rng = np.random.default_rng(11)
     a = np.clip(a + rng.uniform(-1.5 / 255, 1.5 / 255, a.shape).astype(np.float32), 0, 1)
-    a = np.where(d > 0, a, 0.0)
+    a = np.where(d > edge, a, 0.0)
     data = np.ascontiguousarray((np.dstack([rgb, a[..., None]]) * 255).astype(np.uint8))
     small = QImage(data.data, sw, sh, sw * 4, QImage.Format_RGBA8888).copy()
     return small.scaled(tw, th, Qt.IgnoreAspectRatio, Qt.SmoothTransformation), tw / w
@@ -249,10 +273,12 @@ class Ripple:
         self.kicks = Kicks()
         self.started = -1e9
         self.strength = 1.0
+        self.hit: str | None = None
 
     def update(self, now: float, pulse: float) -> tuple[float, float]:
-        """(alpha 0..1, scale 0..1 of the quad) for the rim now."""
-        hit = self.kicks.update(now, pulse)
+        """(alpha 0..1, scale 0..1 of the quad) for the rim now. ``hit``
+        keeps this frame's kick ("full", "soft" or None) for the floor."""
+        hit = self.hit = self.kicks.update(now, pulse)
         if hit is not None:
             self.started = now
             self.strength = 1.0 if hit == "full" else self.SOFT

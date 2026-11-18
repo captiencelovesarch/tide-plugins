@@ -5,7 +5,7 @@ blurb    = "check the watch on your wrist and tide opens in vr. look away and it
 about    = """
 a watch on your wrist. turn it toward you and tide's panel opens in front of you: the song, the lyrics, the queue, search and your library. press it with your controller tip or point the laser at it. look away and it goes after a couple of seconds.
 
-voice search runs on this computer (the whisper model, about 77 mb, is a button in the settings). a glow on the edge of your view can pulse with the music, never more than three flashes a second.
+voice search runs on this computer (the whisper model, about 77 mb, is a button in the settings). the music can show in the headset too: rings across the floor on each kick, the cover low in a corner of your view, a glow along the bottom, or just the watch. never more than three flashes a second.
 """
 category = "hardware"
 min_tide = "3.0.0"

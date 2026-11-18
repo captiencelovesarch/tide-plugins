@@ -12,7 +12,7 @@ thread. Learned in the spike (tools/vr-spike, design/steamvr.md):
   clicks on our own overlays do arrive, so that's all this uses.
 * an interactive overlay (one the laser can click) takes the controllers
   from the game while you point at it. so only the open panel is
-  interactive; the watch and the ring never are (h3vr froze when the
+  interactive; the watch and the visualizer never are (h3vr froze when the
   watch came up mid-aim). touch goes by controller poses, which keep
   coming either way.
 * overlays draw over the game's controllers. seethrough.py thins the
@@ -34,7 +34,7 @@ from PySide6.QtCore import QObject, QThread, Signal
 
 from . import geometry as geo
 from . import ring as ringmod
-from . import seethrough
+from . import seethrough, visual
 
 log = logging.getLogger("tide.plugin.steamvr")
 
@@ -47,6 +47,7 @@ SPRING_S = 0.42            # modern's springy open
 CLOSE_S = 0.22
 WATCH_POP_S = 0.3
 SEE_THROUGH_HZ = 45        # redraws of the windows over your controllers, at most
+IDLE_HZ = 30               # nothing of ours in view: only watching for the wrist turn
 PANEL_PX = (1000, 640)
 PANEL_WIDTH_M = {"small": 0.34, "medium": 0.42, "large": 0.50}
 WATCH_PX = 256
@@ -61,9 +62,7 @@ TOAST_POP_S = 0.3
 
 def to_np(m34) -> np.ndarray:
     a = np.eye(4)
-    for i in range(3):
-        for j in range(4):
-            a[i, j] = m34.m[i][j]
+    a[:3] = np.ctypeslib.as_array(m34.m)
     return a
 
 
@@ -123,6 +122,14 @@ class _Gl:
         self.ctx.functions().glFlush()
         return tex
 
+    def drop(self, tex) -> None:
+        """one texture, its overlay gone mid-session."""
+        if tex is None or tex not in self.textures:
+            return
+        if self.ctx.makeCurrent(self.surface):
+            tex.destroy()
+        self.textures.remove(tex)
+
     def release(self) -> None:
         """drop this session's textures; the context stays for the next."""
         if self.ctx.makeCurrent(self.surface):
@@ -139,6 +146,9 @@ class _Overlay:
         self.ov, self.gl = ov, gl
         self.h = ov.createOverlay(key, name)
         ov.setOverlayWidthInMeters(self.h, width_m)
+        # what steamvr has now: width and alpha are set every tick, and each
+        # call is a round trip to the compositor, so unchanged ones are skipped
+        self._width, self._alpha = float(width_m), 1.0
         self.interactive = False
         if interactive:
             scale = openvr.HmdVector2_t()
@@ -186,10 +196,16 @@ class _Overlay:
         self.ov.setOverlayTransformTrackedDeviceRelative(self.h, device, to_m34(offset))
 
     def width(self, metres: float) -> None:
-        self.ov.setOverlayWidthInMeters(self.h, float(metres))
+        metres = float(metres)
+        if abs(metres - self._width) > 1e-5:
+            self._width = metres
+            self.ov.setOverlayWidthInMeters(self.h, metres)
 
     def alpha(self, a: float) -> None:
-        self.ov.setOverlayAlpha(self.h, float(a))
+        a = float(a)
+        if abs(a - self._alpha) > 1e-3:
+            self._alpha = a
+            self.ov.setOverlayAlpha(self.h, a)
 
     def show(self, on: bool) -> None:
         if on == self.visible:
@@ -220,7 +236,7 @@ class _Lost(Exception):
 
 class VrThread(QThread):
     """connects to steamvr when it's running, runs the watch, the panel and
-    the ring, reconnects after steamvr restarts. ``post`` is the only way
+    the visualizer, reconnects after steamvr restarts. ``post`` is the only way
     in."""
 
     def __init__(self, bridge: VrBridge, surface, settings: dict) -> None:
@@ -237,8 +253,8 @@ class VrThread(QThread):
         self.pulse_peak = 0.0
         self.beat = 0.0           # this frame's pulse: the peak since the last one
         self.playing = False
-        self.rings: list[_Overlay] = []
-        self.ring_width = 0.0
+        self.vis: dict[str, _Overlay] = {}        # the visualizer's overlays (visual.LAYERS)
+        self.vis_width: dict[str, float] = {}     # each layer's width as drawn
         # kept across reconnects: they're drawn once (per song, per theme)
         self.back_img = None
         self.glow_img = None
@@ -300,7 +316,7 @@ class VrThread(QThread):
             except Exception as exc:  # noqa: BLE001 - never let the thread die quietly
                 log.exception("vr session failed")
                 import traceback
-                why = f"error: {exc}"
+                why = f"error: {exc or type(exc).__name__}"
                 self._note("".join(traceback.format_exception(exc)).rstrip())
             self._note(f"session ended after {time.monotonic() - started:.0f} s: {why}")
             if self._stop:
@@ -333,37 +349,32 @@ class VrThread(QThread):
         except openvr.OpenVRError as exc:
             raise _Lost(f"couldn't connect: {exc}") from None
         overlays: list[_Overlay] = []
+        cpu0, wall0 = time.thread_time(), time.monotonic()
         try:
             if self._gl is None:
                 self._gl = _Gl(self.surface)
             self.ov = openvr.VROverlay()
-            self.panel = _Overlay(self.ov, self._gl, "tide.vr.panel", "tide", self._panel_width(),
-                                  PANEL_PX, interactive=True)
-            self.watch = _Overlay(self.ov, self._gl, "tide.vr.watch", "tide watch", WATCH_WIDTH_M,
-                                  (WATCH_PX, WATCH_PX))
-            # the panel's back (you walked round it) and its glow, under it
-            self.back = _Overlay(self.ov, self._gl, "tide.vr.back", "tide back",
-                                 self._panel_width(), PANEL_PX)
-            self.glow = _Overlay(self.ov, self._gl, "tide.vr.glow", "tide glow",
-                                 self._panel_width() * self.glow_ratio, PANEL_PX)
-            # the now playing toast: never a laser target, so it can't take
-            # the controllers from a game
-            self.toast = _Overlay(self.ov, self._gl, "tide.vr.toast", "tide now playing",
-                                  TOAST_WIDTH_M, TOAST_PX)
-            self.ov.setOverlaySortOrder(self.toast.h, 2)
-            self.ov.setOverlaySortOrder(self.glow.h, 0)
-            self.ov.setOverlaySortOrder(self.panel.h, 1)
-            self.ov.setOverlaySortOrder(self.back.h, 1)
-            overlays = [self.panel, self.watch, self.back, self.glow, self.toast]
+            try:
+                self._make_overlays(overlays)
+            except openvr.OpenVRError as exc:
+                # vrserver is up but the compositor isn't yet, or steamvr
+                # restarted itself mid-startup: the handle we just made is
+                # already gone. try again in a bit
+                raise _Lost(f"steamvr is still starting ({type(exc).__name__})") from None
             self._input()
             self.bridge.lens.emit(self._lens())
             self.bridge.status.emit("connected")
             self._note("connected")
             self._loop()
         finally:
-            for o in overlays + self.rings:
+            wall = time.monotonic() - wall0
+            if wall > 30:
+                # what this thread cost, to check performance reports against
+                self._note(f"vr thread used {100 * (time.thread_time() - cpu0) / wall:.1f}% "
+                           "of a cpu core")
+            for o in overlays + list(self.vis.values()):
                 o.destroy()
-            self.rings = []
+            self.vis, self.vis_width = {}, {}
             if self._gl is not None:
                 self._gl.release()
             openvr.shutdown()
@@ -371,6 +382,33 @@ class VrThread(QThread):
                 self.panel_open = False
                 self.bridge.panel_closed.emit("steamvr")
             self.bridge.watch_visible.emit(False)
+
+    def _make_overlays(self, made: list) -> None:
+        """the panel, watch, back, glow and toast. each goes into ``made``
+        as soon as it exists, so a failure part way still destroys them."""
+        self.panel = _Overlay(self.ov, self._gl, "tide.vr.panel", "tide", self._panel_width(),
+                              PANEL_PX, interactive=True)
+        made.append(self.panel)
+        self.watch = _Overlay(self.ov, self._gl, "tide.vr.watch", "tide watch", WATCH_WIDTH_M,
+                              (WATCH_PX, WATCH_PX))
+        made.append(self.watch)
+        # the panel's back (you walked round it) and its glow, under it
+        self.back = _Overlay(self.ov, self._gl, "tide.vr.back", "tide back",
+                             self._panel_width(), PANEL_PX)
+        made.append(self.back)
+        self.glow = _Overlay(self.ov, self._gl, "tide.vr.glow", "tide glow",
+                             self._panel_width() * self.glow_ratio, PANEL_PX)
+        made.append(self.glow)
+        # the now playing toast: never a laser target, so it can't take
+        # the controllers from a game
+        self.toast = _Overlay(self.ov, self._gl, "tide.vr.toast", "tide now playing",
+                              TOAST_WIDTH_M, TOAST_PX)
+        made.append(self.toast)
+        self.ov.setOverlaySortOrder(self.toast.h, 2)
+        self.ov.setOverlaySortOrder(self.watch.h, 1)        # over its glow
+        self.ov.setOverlaySortOrder(self.glow.h, 0)
+        self.ov.setOverlaySortOrder(self.panel.h, 1)
+        self.ov.setOverlaySortOrder(self.back.h, 1)
 
     def _input(self) -> None:
         """haptics. no buttons: an overlay never gets them while a game
@@ -451,18 +489,27 @@ class VrThread(QThread):
         self.behind = False
         self.toast_at: float | None = None
         self.toast_follow = geo.LazyFollow()
+        self.watch_pose = None
+        self.ripples: dict[int, tuple[float, float]] = {}    # pool slot -> (started, power)
+        self.ripple_n = 0
+        self.chip_fade = visual.Fade()
+        self.title_at: float | None = None
         self.glow_flash = geo.FlashLimiter()
         self.glow_env = ringmod.Envelope()
-        if self.back_img is not None:
-            frames["back"] = self.back_img
-        if self.glow_img is not None:
-            frames["glow"] = self.glow_img
         self.closing_at: float | None = None
         self.closing_from = 1.0
         self.watch_popped_at = -1e9
         self.stalls = 0
         self._errors_seen: set[str] = set()
+        # made before the back and glow go back in: used first, it ended
+        # every session after the first (steamvr restarting itself while
+        # it starts up was enough) and tide had to reinstall the plugin
+        # (2026-11-04)
         frames: dict[str, object] = {}
+        if self.back_img is not None:
+            frames["back"] = self.back_img
+        if self.glow_img is not None:
+            frames["glow"] = self.glow_img
         next_t = time.perf_counter()
         while not self._stop:
             now = time.perf_counter()
@@ -482,7 +529,7 @@ class VrThread(QThread):
             else:
                 self._guard("watch", self._watch_tick, now)
             self._guard("closing", self._closing_tick, now)
-            self._guard("ring", self._ring_tick, now)
+            self._guard("visualizer", self._vis_tick, now)
             self._guard("toast", self._toast_tick, now)
             for name, ov in (("watch", self.watch), ("back", self.back), ("glow", self.glow),
                              ("toast", self.toast)):
@@ -495,12 +542,20 @@ class VrThread(QThread):
             img = self._panel_image(now, fresh is not None)
             if img is not None:
                 self._upload(self.panel, img)
-            next_t += 1.0 / hz
+            next_t += 1.0 / (hz if self._busy() else min(hz, IDLE_HZ))
             delay = next_t - time.perf_counter()
             if delay > 0:
                 time.sleep(delay)
             else:
                 next_t = time.perf_counter()
+
+    def _busy(self) -> bool:
+        """something of ours is in view and moves with you or the music:
+        it gets the headset's frame rate. the rest of the time IDLE_HZ
+        still catches the wrist turn (the watch waits WATCH_SHOW_S anyway)
+        for a third to a fifth of the ticks."""
+        return (self.panel_open or self.closing_at is not None or self.watch_shown.on
+                or self.toast_at is not None or any(o.visible for o in self.vis.values()))
 
     def _upload(self, ov: _Overlay, img) -> None:
         if ov.upload(img) > STALL_S:
@@ -592,10 +647,12 @@ class VrThread(QThread):
                 self.pulse_peak = max(self.pulse_peak, self.pulse)
             elif kind == "playing":
                 self.playing = bool(cmd[1])
-            elif kind == "ring_frames":
-                self._ring_setup(cmd[1], cmd[2])
+            elif kind == "vis_frames":
+                self._vis_setup(cmd[1], cmd[2])
             elif kind == "settings":
+                old_mode, old_hand = self._vis_mode(), self.settings.get("watch_hand")
                 self.settings.update(cmd[1])
+                self._vis_settings(old_mode, old_hand)
                 self.panel.width(self._panel_width())
                 self.attention.linger_s = float(self.settings.get("linger", 2.5))
                 self.attention.animate = self._animate()
@@ -694,7 +751,8 @@ class VrThread(QThread):
         if not shown or hmd is None or ctrl is None:
             return
         pos = geo.wrist_point(ctrl, side)
-        self.watch.place(geo.facing(pos, hmd[:3, 3]))
+        self.watch_pose = geo.facing(pos, hmd[:3, 3])        # its glow follows
+        self.watch.place(self.watch_pose)
         # modern: it pops in with a little overshoot
         pop = (geo.ease_out_back((now - self.watch_popped_at) / WATCH_POP_S)
                if self._springy() else 1.0)
@@ -932,50 +990,162 @@ class VrThread(QThread):
                 self.last_touch = now
                 break
 
-    # ---- ring ----
+    # ---- the visualizer (visual.py) ----
 
-    def _ring_setup(self, images: list, width_m: float) -> None:
-        """[glow, rim] for this song. same layers again (a new song's
-        colours) upload in place; anything else rebuilds them."""
-        import openvr
-        if len(self.rings) != len(images) or abs(self.ring_width - width_m) > 1e-6:
-            for o in self.rings:
-                o.destroy()
-            self.rings = []
-            for i, img in enumerate(images):
-                o = _Overlay(self.ov, self._gl, f"tide.vr.ring{i}", f"tide ring {i}", width_m,
-                             (img.width(), img.height()))
-                # each eye gets its own half: its own lens outline
-                self.ov.setOverlayFlag(o.h, openvr.VROverlayFlags_SideBySide_Parallel, True)
-                o.place_on(openvr.k_unTrackedDeviceIndex_Hmd,
-                           geo.translate(0.0, 0.0, -ringmod.DISTANCE_M))
-                o.alpha(0.0)
-                self.rings.append(o)
-            self.ring_width = width_m
-        for o, img in zip(self.rings, images):
-            o.upload(img)
+    def _vis_mode(self) -> str:
+        mode = self.settings.get("visualizer", "off")
+        return mode if mode in visual.LAYERS else "off"
 
-    def _ring_tick(self, now: float) -> None:
-        if not self.rings:
+    def _vis_setup(self, mode: str, layers: dict) -> None:
+        """this song's textures, {layer: (image, width)}. layers drawn for
+        another mode (the setting changed on the way) are left out; the
+        same layer again (a new song's colours) uploads in place."""
+        if mode != self._vis_mode():
             return
-        mode = self.settings.get("ring", "off")
+        wanted = visual.LAYERS[mode]
+        for name, (img, width_m) in layers.items():
+            if name not in wanted:
+                continue
+            self.vis_width[name] = float(width_m)
+            for key in (visual.ripple_keys() if name == "ripple" else [name]):
+                o = self.vis.get(key)
+                if o is None:
+                    o = self.vis[key] = self._vis_overlay(key, name, width_m, img)
+                elif name not in ("ripple", "watch_glow"):     # those two size themselves
+                    o.width(width_m)
+                o.upload(img)
+            if name == "chip_title":
+                self.title_at = time.perf_counter()
+
+    def _vis_overlay(self, key: str, name: str, width_m: float, img) -> _Overlay:
+        """none of these is a laser target: they never take the
+        controllers from a game."""
+        import openvr
+        o = _Overlay(self.ov, self._gl, f"tide.vr.vis.{key}", f"tide {key}", width_m,
+                     (img.width(), img.height()))
+        o.alpha(0.0)
+        if name in ("glow", "rim"):
+            # each eye gets its own half: its own lens outline
+            self.ov.setOverlayFlag(o.h, openvr.VROverlayFlags_SideBySide_Parallel, True)
+            o.place_on(openvr.k_unTrackedDeviceIndex_Hmd,
+                       geo.translate(0.0, 0.0, -ringmod.DISTANCE_M))
+        elif name.startswith("chip"):
+            self._vis_place_chip(o, name)
+            self.ov.setOverlaySortOrder(o.h, 1 if name == "chip" else 0)
+        elif name == "watch_glow":
+            self.ov.setOverlaySortOrder(o.h, 0)       # under the watch
+        return o
+
+    def _vis_place_chip(self, o: _Overlay, name: str) -> None:
+        """locked to your head: placed once, steamvr keeps it there."""
+        import openvr
+        side = visual.chip_side(self.settings.get("watch_hand", "left"))
+        pose = visual.title_pose(side) if name == "chip_title" else visual.chip_pose(side)
+        o.place_on(openvr.k_unTrackedDeviceIndex_Hmd, pose)
+
+    def _vis_settings(self, old_mode: str, old_hand) -> None:
+        """the settings changed: drop what the new mode doesn't use (the gui
+        sends its textures), move the chip if the watch changed wrists."""
+        mode = self._vis_mode()
+        if mode != old_mode:
+            keep = visual.LAYERS[mode]
+            for key in list(self.vis):
+                if ("ripple" if key.startswith("ripple") else key) not in keep:
+                    o = self.vis.pop(key)
+                    o.destroy()
+                    self._gl.drop(o.tex)
+            self.ripples.clear()
+        if self.settings.get("watch_hand") != old_hand:
+            for key in ("chip", "chip_ring", "chip_title"):
+                if key in self.vis:
+                    self._vis_place_chip(self.vis[key], key)
+
+    def _vis_tick(self, now: float) -> None:
+        if not self.vis:
+            return
+        mode = self._vis_mode()
         if mode == "off" or not self._animate():
-            for o in self.rings:
+            for o in self.vis.values():
                 o.show(False)
             return
         strength = ringmod.STRENGTH.get(self.settings.get("ring_strength", "normal"), 0.7)
         pulse = self.beat
         # the flash limit judges the real jumps; the envelope then smooths
         # what's left to the headset's frame rate
-        limited = self.flash.update(now, ringmod.glow_level(mode, pulse, self.playing))
-        glow = self.envelope.update(now, limited) * strength
+        limited = self.flash.update(now, ringmod.glow_level("breathing", pulse, self.playing))
+        level = self.envelope.update(now, limited) * strength
         rim_alpha, rim_scale = self.ripple.update(now, pulse)
-        rim = rim_alpha * strength * (1.0 if mode == "kick" else 0.6)
-        glow_o, rim_o = self.rings[0], self.rings[-1]
-        glow_o.show(glow > 0.003)
-        glow_o.alpha(glow)
-        rim_o.show(rim > 0.003)
-        rim_o.alpha(rim)
-        # the ripple travels inward: the head-locked quad shrinks round
-        # the middle of your view
-        rim_o.width(self.ring_width * rim_scale)
+        self._vis_watch(level)
+        if mode == "floor":
+            self._vis_floor(now, self.ripple.hit, strength)
+        elif mode == "corner":
+            self._vis_corner(now, level)
+        elif mode == "bottom":
+            self._vis_bottom(level, rim_alpha * strength * 0.8, rim_scale)
+
+    def _vis_watch(self, level: float) -> None:
+        o = self.vis.get("watch_glow")
+        if o is None:
+            return
+        on = self.watch.visible and self.watch_pose is not None and level > 0.003
+        o.show(on and o.has_frame)
+        if on:
+            o.place(self.watch_pose)
+            o.width(self.watch._width * visual.WATCH_GLOW)
+            o.alpha(level)
+
+    def _vis_floor(self, now: float, hit: str | None, strength: float) -> None:
+        """a kick starts a ripple under your head; it stays there as it
+        spreads. the pool's overlays take turns."""
+        keys = [k for k in visual.ripple_keys() if k in self.vis]
+        if not keys:
+            return
+        if hit is not None and self.playing:
+            hmd = self._hmd()
+            if hmd is not None:
+                slot = self.ripple_n % len(keys)
+                self.ripple_n += 1
+                self.vis[keys[slot]].place(visual.floor_pose(hmd[:3, 3]))
+                self.ripples[slot] = (now, 1.0 if hit == "full" else ringmod.Ripple.SOFT)
+        for slot, key in enumerate(keys):
+            o = self.vis[key]
+            start, power = self.ripples.get(slot, (None, 0.0))
+            look = None if start is None else visual.ripple_look(now - start)
+            if look is None:
+                self.ripples.pop(slot, None)
+                o.show(False)
+                continue
+            width, alpha = look
+            o.width(width)
+            o.alpha(alpha * power * strength)
+            o.show(o.has_frame)
+
+    def _vis_corner(self, now: float, level: float) -> None:
+        """the chip shows while music plays and the panel's closed (the
+        panel has it all); the title for a few seconds after a new song."""
+        fade = self.chip_fade.update(now, self.playing and not self.panel_open)
+        chip, ring, title = (self.vis.get(k) for k in ("chip", "chip_ring", "chip_title"))
+        if chip is not None:
+            chip.alpha(0.94 * fade)
+            chip.show(chip.has_frame and fade > 0.003)
+        if ring is not None:
+            ring.alpha(fade * level)
+            ring.width(self.vis_width.get("chip_ring", visual.CHIP_M) * (1.0 + 0.06 * level))
+            ring.show(ring.has_frame and fade * level > 0.003)
+        if title is not None:
+            age = 1e9 if self.title_at is None else now - self.title_at
+            a = geo.toast_alpha(age, visual.TITLE_HOLD_S) * fade
+            title.alpha(a)
+            title.show(title.has_frame and a > 0.003)
+
+    def _vis_bottom(self, level: float, rim: float, rim_scale: float) -> None:
+        glow, rim_o = self.vis.get("glow"), self.vis.get("rim")
+        if glow is not None:
+            glow.show(glow.has_frame and level > 0.003)
+            glow.alpha(level)
+        if rim_o is not None:
+            rim_o.show(rim_o.has_frame and rim > 0.003)
+            rim_o.alpha(rim)
+            # the ripple travels inward (up, here): the head-locked quad
+            # shrinks round the middle of your view
+            rim_o.width(self.vis_width.get("rim", 1.0) * rim_scale)

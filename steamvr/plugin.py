@@ -1,6 +1,6 @@
 """tide in vr: a watch on your wrist opens a now-playing panel in front of
-you, look away and it goes; and the ring, tide's backdrop pulse on the
-edge of your view. design/steamvr.md is the plan.
+you, look away and it goes; and the visualizer, tide's beat in the
+headset (visual.py). design/steamvr.md is the plan.
 
 The gui half lives here: it keeps the qt panel up to date, renders it
 when something changed and posts the frames to the vr thread (vr.py),
@@ -12,7 +12,9 @@ from PySide6.QtCore import QTimer
 from PySide6.QtGui import QColor, QOffscreenSurface, QSurfaceFormat
 
 from . import ring as ringmod
-from .panel import PANEL_PX, Forwarder, VrPanel, back_face, toast_face, watch_face
+from . import visual
+from .panel import (PANEL_PX, Forwarder, VrPanel, back_face, chip_face, chip_title, toast_face,
+                    watch_face)
 from .vr import VrBridge, VrThread
 
 TOAST_SETTLE_MS = 1000   # a song has to stay this long to get a toast
@@ -25,11 +27,13 @@ class SteamVr:
         self.ctx = ctx
         self.panel_open = False
         self.watch_up = False
-        self._last_ring = "breathing"
+        self._connected = False
+        self._last_vis = "floor"          # what the panel's ring button turns back on
         self._eyes = None                 # steamvr's lens outlines, once connected
         self._ring_colors = None          # from the current cover
         self._ring_art = ""
-        self._ring_drawn = False
+        self._cover = None                # the current cover, for the corner chip
+        self._vis_drawn = None            # (mode, watch hand) the textures were drawn for
         self._glow_drawn = False
         # every qt object here is handed to ctx.adopt: tide deletes them
         # right after stop(), while qt is still whole
@@ -143,7 +147,7 @@ class SteamVr:
             "size": s["size"],
             "linger": float(s["linger"]),
             "haptics": s["haptics"],
-            "ring": s["ring"],
+            "visualizer": s["visualizer"],
             "ring_strength": s["ring_strength"],
             "motion_off": self.ctx.motion.off(),
             "cursor": self.ctx.theme.token("accent", "#ffd400"),
@@ -155,26 +159,35 @@ class SteamVr:
     def _apply_settings(self) -> None:
         s = self.ctx.settings
         self.thread.post("settings", self._vr_settings())
-        if s["ring"] != "off":
-            self._last_ring = s["ring"]
-            if not self._ring_drawn:
-                self._ring_drawn = True
-                self._draw_ring()
+        if s["visualizer"] != "off":
+            self._last_vis = s["visualizer"]
+        # a new mode needs its own textures; the chip changes sides with
+        # the watch
+        if (s["visualizer"], s["watch_hand"]) != self._vis_drawn:
+            self._vis_drawn = (s["visualizer"], s["watch_hand"])
+            self._draw_vis()
         if s["panel_glow"] != "off" and not self._glow_drawn:
             self._glow_drawn = True
             self._draw_glow()
-        if s["ring"] != "off" or s["panel_glow"] != "off":
-            self.ctx.beats.subscribe()
-        else:
-            self.ctx.beats.unsubscribe()
+        self._sync_beats()
         if s["lyrics"]:
             self.ctx.lyrics.subscribe()
         else:
             self.ctx.lyrics.unsubscribe()
-        self.panel.ring_on = s["ring"] != "off"
+        self.panel.ring_on = s["visualizer"] != "off"
         self.panel.lyrics_on = s["lyrics"]
         self.panel.set_animate(self._springy(), self._durations())
         self.panel.refresh()
+
+    def _sync_beats(self) -> None:
+        """tide's beat analysis (live capture, a beat map per song) runs
+        for us only while steamvr is up and the visualizer or the panel
+        glow shows it. it used to run whenever the plugin was on."""
+        s = self.ctx.settings
+        if self._connected and (s["visualizer"] != "off" or s["panel_glow"] != "off"):
+            self.ctx.beats.subscribe()
+        else:
+            self.ctx.beats.unsubscribe()
 
     def _set(self, key: str, value) -> None:
         """a change made on the panel's own settings page."""
@@ -257,12 +270,19 @@ class SteamVr:
         self.panel.search.say(f"listening · {self.ctx.speech.seconds():.1f} s")
 
     def _toggle_ring(self) -> None:
-        self._set("ring", "off" if self.ctx.settings["ring"] != "off" else self._last_ring)
+        """the ring button on the now playing page: the visualizer off, or
+        back to the last one you had."""
+        on = self.ctx.settings["visualizer"] != "off"
+        self._set("visualizer", "off" if on else self._last_vis)
 
     # ---- from the vr thread ----
 
     def _status(self, text: str) -> None:
         self.ctx.set_status(text)
+        connected = text == "connected"
+        if connected != self._connected:
+            self._connected = connected
+            self._sync_beats()
 
     def _mouse(self, kind: str, x: float, y: float) -> None:
         self.fwd.handle(kind, x, y)
@@ -283,23 +303,40 @@ class SteamVr:
             self._send_watch()
 
     def _lens(self, eyes: dict) -> None:
-        """steamvr told us each eye's outline: the ring can be drawn."""
+        """steamvr connected and told us each eye's outline: the
+        visualizer's textures go (again) to this session."""
         self._eyes = eyes
-        self._draw_ring()
+        self._draw_vis()
 
-    def _draw_ring(self) -> None:
-        """draw the ring off the gui thread (half a second of numpy) and
-        hand it over. per song: the colours come from the cover."""
-        if self._eyes is None or self.ctx.settings["ring"] == "off":
+    def _draw_vis(self) -> None:
+        """the visualizer's textures for the current mode, drawn off the
+        gui thread (the bottom glow is half a second of numpy) and handed
+        over. per song: the colours come from the cover."""
+        mode = self.ctx.settings["visualizer"]
+        if mode == "off":
             return
         eyes = self._eyes
-        a, b = self._ring_colors or (self._accent(), self._accent(0.75))
+        colors = self._ring_colors or (self._accent(), self._accent(0.75))
         style = self.ctx.theme.aesthetic()
-        self.ctx.jobs.run(lambda: ringmod.draw(eyes, (a, b), style),
-                          on_done=lambda result: self.thread.post("ring_frames", *result))
+        self.ctx.jobs.run(lambda: visual.textures(mode, eyes, colors, style),
+                          on_done=lambda layers: self.thread.post("vis_frames", mode, layers))
+        self._draw_chip()
+
+    def _draw_chip(self) -> None:
+        """the corner chip's cover and title: here, they need the theme's
+        fonts. a new title brings the title up for a few seconds."""
+        if self.ctx.settings["visualizer"] != "corner":
+            return
+        track = self.ctx.playback.current()
+        side = visual.chip_side(self.ctx.settings["watch_hand"])
+        layers = {"chip": (chip_face(self.ctx, self._cover), visual.CHIP_M)}
+        if track is not None:
+            layers["chip_title"] = (chip_title(self.ctx, track.title, track.artists, side),
+                                    visual.TITLE_M)
+        self.thread.post("vis_frames", "corner", layers)
 
     def _draw_glow(self) -> None:
-        """the panel's glow, per song like the ring."""
+        """the panel's glow, per song like the visualizer."""
         if self.ctx.settings["panel_glow"] == "off":
             return
         a, b = self._ring_colors or (self._accent(), self._accent(0.75))
@@ -318,11 +355,13 @@ class SteamVr:
             self._toast_wait.start()
         url = getattr(track, "art_url", "") if track is not None else ""
         if url == self._ring_art:
+            self._draw_chip()             # same cover (same album): a new title
             return
         self._ring_art = url
         if not url:
             self._ring_colors = None
-            self._draw_ring()
+            self._cover = None
+            self._draw_vis()
             self._draw_glow()
             return
         self.ctx.track.art(url, lambda img, u=url: self._ring_cover(u, img))
@@ -330,11 +369,14 @@ class SteamVr:
     def _ring_cover(self, url: str, img) -> None:
         if url != self._ring_art:
             return
+        self._cover = img
         colors = ringmod.cover_colors(img)
         if colors != self._ring_colors:
             self._ring_colors = colors
-            self._draw_ring()
+            self._draw_vis()
             self._draw_glow()
+        else:
+            self._draw_chip()
 
     # ---- from tide ----
 
@@ -384,7 +426,7 @@ class SteamVr:
         self.panel.restyle()
         self.panel.set_animate(self._springy(), self._durations())
         self.thread.post("settings", self._vr_settings())
-        self._draw_ring()
+        self._draw_vis()
         self._draw_glow()
         self._send_back()
         if self.watch_up:
